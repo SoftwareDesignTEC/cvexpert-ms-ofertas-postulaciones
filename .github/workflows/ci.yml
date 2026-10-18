@@ -1,0 +1,49 @@
+name: CI
+
+# Pruebas en cada pull request a main y en cada push a main. El despliegue al App Service
+# se agrega cuando existan los recursos de Azure; también saldrá solo desde main.
+#
+# No hay filtro de rutas a propósito: el check "pruebas" es obligatorio para unir un PR, y
+# un PR que no lo dispara (por ejemplo, uno que solo cambia docs/) quedaría bloqueado.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Un push nuevo a la misma rama cancela la corrida anterior que siga en curso.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # verify compila, corre todas las pruebas y arma el jar. La prueba de la aplicación
+      # levanta PostgreSQL 16 con Testcontainers, usando el Docker que trae el runner.
+      - name: Compilar y probar
+        run: ./mvnw -B verify
+
+      - name: Reporte de pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-pruebas
+          path: target/surefire-reports/
+          if-no-files-found: ignore

@@ -79,6 +79,12 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 - Las pruebas del dominio no usan Spring ni base de datos.
 - La prueba de la aplicación levanta un PostgreSQL 16 en Docker con Testcontainers, así que Docker tiene que estar corriendo.
 
+## CI
+
+`.github/workflows/ci.yml` corre `./mvnw -B verify` (compila, prueba y arma el jar) en cada pull request a `main` y en cada push a `main`. El check se llama **pruebas** y es obligatorio para unir un PR. Un push nuevo a la misma rama cancela la corrida anterior. El reporte de las pruebas queda como artefacto `reporte-pruebas`.
+
+El despliegue al App Service se suma cuando existan los recursos de Azure, y saldrá solo desde `main`.
+
 ## Configuración
 
 Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde el Key Vault `kv-cvexpert`.
@@ -94,7 +100,8 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 
 - [x] Proyecto base, estructura hexagonal y pruebas.
 - [x] Borrador del contrato OpenAPI (`docs/openapi.yaml`). Falta confirmar con la exportación de APIM las 5 operaciones marcadas `por-confirmar-apim`.
-- [ ] Pipeline de GitHub Actions.
+- [x] CI con pruebas en cada PR.
+- [ ] Despliegue al App Service desde `main`.
 - [ ] Dominio, persistencia y casos de uso.
 - [ ] Publicación de eventos en Service Bus.
 - [ ] Certificado de cliente de APIM.
