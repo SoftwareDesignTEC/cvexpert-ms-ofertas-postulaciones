@@ -1,0 +1,25 @@
+# Configuración del servicio. Ningún valor real vive aquí: las URLs y credenciales llegan
+# por variables de entorno (en local desde .env, en Azure desde el Key Vault kv-cvexpert).
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: ofertas-postulaciones
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    # El esquema lo manejan las migraciones de Flyway; Hibernate solo valida que coincida.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    locations: classpath:db/migration
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
