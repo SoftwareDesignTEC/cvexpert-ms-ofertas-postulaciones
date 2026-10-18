@@ -93,7 +93,7 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 ## Estado
 
 - [x] Proyecto base, estructura hexagonal y pruebas.
-- [ ] Contrato OpenAPI (`docs/openapi.yaml`).
+- [x] Borrador del contrato OpenAPI (`docs/openapi.yaml`). Falta confirmar con la exportación de APIM las 5 operaciones marcadas `por-confirmar-apim`.
 - [ ] Pipeline de GitHub Actions.
 - [ ] Dominio, persistencia y casos de uso.
 - [ ] Publicación de eventos en Service Bus.
