@@ -1,0 +1,686 @@
+openapi: 3.1.0
+info:
+  title: CVExpert - Ofertas y Postulaciones
+  version: 0.1.0-borrador
+  description: |
+    Borrador del contrato del microservicio de Ofertas y Postulaciones (Fase II).
+
+    **Rutas de la Fase I.** Las URLs que usan hoy la web y la app no cambian: APIM solo
+    cambia el backend de cada operación. Las operaciones marcadas con
+    `x-estado: confirmado-fase-1` salen del código de los dos clientes. Las marcadas con
+    `x-estado: por-confirmar-apim` existen en los mocks de APIM pero ningún cliente las usa;
+    su forma se confirma con la exportación de APIM. Las marcadas con `x-estado: nuevo` son
+    de la Fase II.
+
+    **Identidad.** APIM valida el token de Google y pasa la identidad en encabezados. El
+    servicio no recibe tokens: `X-User-Id` (el `sub` de Google) y `X-User-Email` llegan en
+    todas las rutas, y `X-User-Role` además en las de administración.
+
+    **Fechas.** Todas viajan como epoch en milisegundos UTC (en la Fase I eran texto ISO
+    8601). Los clientes las muestran en la zona horaria del dispositivo.
+
+    **Ids.** Numéricos en la base de datos (PostgreSQL), pero viajan como texto ("123"),
+    igual que en la Fase I.
+servers:
+  - url: https://{apim}/api/v1
+    description: A través de APIM. La URL base la define APIM; no va en el código.
+    variables:
+      apim:
+        default: apim.example
+security:
+  - apimClientCertificate: []
+tags:
+  - name: Ofertas
+    description: Ofertas de trabajo y su compatibilidad con el perfil de quien consulta
+  - name: Postulaciones
+    description: Postulaciones del usuario y su tablero Kanban
+  - name: Alertas
+    description: Alertas de ofertas nuevas y perfil de emparejamiento
+  - name: Administración
+    description: Rutas que exigen X-User-Role de administrador
+
+paths:
+  /jobs:
+    get:
+      tags: [Ofertas]
+      summary: Lista paginada de ofertas, con su compatibilidad para quien consulta
+      operationId: listJobs
+      x-estado: confirmado-fase-1
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: Página de ofertas. `matchScore` falta si el usuario no guardó su perfil de emparejamiento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobOfferPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Ofertas, Administración]
+      summary: Crear una oferta
+      description: |
+        Solo administradores. Al crearla se calcula la compatibilidad con cada perfil de
+        emparejamiento guardado y se publica un evento `job.new` por cada usuario que alcanza
+        su `minMatch` con las alertas activas.
+      operationId: createJob
+      x-estado: por-confirmar-apim
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobOfferInput'
+      responses:
+        '201':
+          description: Oferta creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobOffer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /jobs/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Ofertas]
+      summary: Detalle de una oferta
+      operationId: getJob
+      x-estado: confirmado-fase-1
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      responses:
+        '200':
+          description: La oferta, con `matchScore` si el usuario guardó su perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobOffer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Ofertas, Administración]
+      summary: Editar una oferta
+      operationId: updateJob
+      x-estado: por-confirmar-apim
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobOfferInput'
+      responses:
+        '200':
+          description: Oferta actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobOffer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Ofertas, Administración]
+      summary: Borrar una oferta
+      description: Las postulaciones a esa oferta se conservan, con su copia del título y la empresa.
+      operationId: deleteJob
+      x-estado: por-confirmar-apim
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/UserRole'
+      responses:
+        '204':
+          description: Oferta borrada
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /applications:
+    get:
+      tags: [Postulaciones]
+      summary: Postulaciones de quien consulta (tablero Kanban)
+      operationId: listApplications
+      x-estado: confirmado-fase-1
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: Página de postulaciones del usuario de `X-User-Id`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplicationPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Postulaciones]
+      summary: Postularse a una oferta
+      description: |
+        La postulación nace en `applied`. El usuario sale de `X-User-Id` y el título, la
+        empresa, la ubicación y la modalidad se copian de la oferta, así que solo hace falta
+        `jobOfferId`. Por compatibilidad con la Fase I se aceptan y se ignoran los demás
+        campos que mandan los clientes (`userId`, `jobTitle`, `company`, etc.).
+
+        No publica evento: el cambio lo hizo la misma persona.
+      operationId: createApplication
+      x-estado: confirmado-fase-1
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Postulación creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El usuario ya se postuló a esa oferta (una sola postulación por usuario y oferta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /applications/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Postulaciones]
+      summary: Detalle de una postulación propia
+      operationId: getApplication
+      x-estado: por-confirmar-apim
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      responses:
+        '200':
+          description: La postulación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplication'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Postulaciones]
+      summary: Mover la tarjeta en el tablero (cambiar el estado de una postulación propia)
+      description: |
+        Es la acción del Kanban de la Fase I: la hace la misma persona que se postuló, así que
+        **no publica evento**. Una postulación de otro usuario responde 404.
+      operationId: updateApplicationStatus
+      x-estado: confirmado-fase-1
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+      responses:
+        '200':
+          description: Postulación actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Postulaciones]
+      summary: Retirar una postulación propia
+      operationId: deleteApplication
+      x-estado: por-confirmar-apim
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      responses:
+        '204':
+          description: Postulación borrada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/applications/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    put:
+      tags: [Administración, Postulaciones]
+      summary: Cambiar el estado de la postulación de otra persona
+      description: |
+        La usa quien gestiona la oferta. Publica `application.status_changed` en la cola de
+        Notificaciones para la persona que se postuló, con `previousStatus` y `newStatus`. Si
+        el estado no cambia, no se publica nada.
+      operationId: adminUpdateApplicationStatus
+      x-estado: nuevo
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+        - $ref: '#/components/parameters/UserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatusRequest'
+      responses:
+        '200':
+          description: Postulación actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobApplication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /alerts:
+    get:
+      tags: [Alertas]
+      summary: Configuración de alertas y perfil de emparejamiento de quien consulta
+      operationId: getAlerts
+      x-estado: nuevo
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      responses:
+        '200':
+          description: La configuración guardada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertSettings'
+        '404':
+          description: El usuario todavía no guardó su configuración
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags: [Alertas]
+      summary: Guardar la configuración de alertas y el perfil de emparejamiento
+      description: |
+        El perfil de emparejamiento es de otro dominio (Usuarios), así que lo manda el
+        cliente y este servicio lo guarda para calcular la compatibilidad de cada oferta.
+        Los clientes lo envían al guardar las alertas y cuando el usuario cambia su perfil.
+      operationId: saveAlerts
+      x-estado: nuevo
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertSettingsInput'
+      responses:
+        '200':
+          description: Configuración guardada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    apimClientCertificate:
+      type: mutualTLS
+      description: |
+        Solo APIM llega al servicio: toda llamada sin el certificado de cliente de APIM se
+        rechaza. Los clientes no usan este esquema; se autentican ante APIM con su token de
+        Google, y APIM pasa la identidad en X-User-Id y X-User-Email.
+
+  parameters:
+    UserId:
+      name: X-User-Id
+      in: header
+      required: true
+      description: '`sub` de la cuenta de Google. Lo pone APIM después de validar el token.'
+      schema:
+        type: string
+    UserEmail:
+      name: X-User-Email
+      in: header
+      required: true
+      description: Correo de la cuenta. Lo pone APIM.
+      schema:
+        type: string
+        format: email
+    UserRole:
+      name: X-User-Role
+      in: header
+      required: true
+      description: Rol del usuario. Lo pone APIM en las rutas de administración; tiene que ser `admin`.
+      schema:
+        type: string
+        enum: [admin]
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        example: '123'
+    Page:
+      name: page
+      in: query
+      description: Página, empezando en 1
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    Search:
+      name: search
+      in: query
+      description: Texto a buscar en título, empresa y ubicación
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Datos inválidos (falta un campo, un valor fuera del contrato, paginación inválida)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Falta el rol de administrador
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No existe, o no pertenece al usuario de `X-User-Id`
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Modality:
+      type: string
+      enum: [remote, on-site, hybrid]
+    JobType:
+      type: string
+      enum: [full-time, part-time, freelance, internship]
+    ApplicationStatus:
+      type: string
+      description: Columnas del Kanban, iguales a la Fase I
+      enum: [applied, in-progress, interview, rejected]
+    EpochMillis:
+      type: integer
+      format: int64
+      description: Epoch en milisegundos UTC
+      example: 1760630400000
+
+    Salary:
+      type: object
+      required: [min, max, currency]
+      properties:
+        min:
+          type: number
+        max:
+          type: number
+        currency:
+          type: string
+          example: CRC
+
+    JobOfferInput:
+      type: object
+      required: [title, company, location, modality, type, sector, description]
+      properties:
+        title:
+          type: string
+        company:
+          type: string
+        companyLogoUrl:
+          type: string
+          format: uri
+        location:
+          type: string
+        modality:
+          $ref: '#/components/schemas/Modality'
+        type:
+          $ref: '#/components/schemas/JobType'
+        sector:
+          type: string
+        description:
+          type: string
+        requirements:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          description: Habilidades que pide la oferta; se usan para la compatibilidad
+          items:
+            type: string
+        minExperienceYears:
+          type: integer
+          minimum: 0
+          description: Experiencia mínima en años (nuevo en la Fase II, para la compatibilidad)
+        salary:
+          $ref: '#/components/schemas/Salary'
+
+    JobOffer:
+      allOf:
+        - type: object
+          required: [id, postedAt]
+          properties:
+            id:
+              type: string
+              example: '123'
+            matchScore:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: Compatibilidad con el perfil de quien consulta. Falta si no guardó su perfil.
+            postedAt:
+              $ref: '#/components/schemas/EpochMillis'
+        - $ref: '#/components/schemas/JobOfferInput'
+
+    JobApplication:
+      type: object
+      required: [id, userId, jobOfferId, jobTitle, company, location, modality, status, appliedAt, updatedAt]
+      properties:
+        id:
+          type: string
+          example: '45'
+        userId:
+          type: string
+          description: '`sub` de Google de quien se postuló'
+        jobOfferId:
+          type: string
+          example: '123'
+        jobTitle:
+          type: string
+          description: Copia del título, por si la oferta se borra
+        company:
+          type: string
+        companyLogoUrl:
+          type: string
+          format: uri
+        location:
+          type: string
+        modality:
+          $ref: '#/components/schemas/Modality'
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+        appliedAt:
+          $ref: '#/components/schemas/EpochMillis'
+        updatedAt:
+          $ref: '#/components/schemas/EpochMillis'
+        notes:
+          type: string
+
+    CreateApplicationRequest:
+      type: object
+      required: [jobOfferId]
+      properties:
+        jobOfferId:
+          type: string
+          example: '123'
+        notes:
+          type: string
+      additionalProperties: true
+
+    UpdateStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ApplicationStatus'
+
+    MatchingProfile:
+      type: object
+      description: |
+        Lo que se compara con cada oferta para calcular `matchScore`. Lo manda el cliente
+        porque sale del perfil del usuario (servicio de Usuarios). Los nombres de
+        `modalities`, `jobTypes` y `sectors` son los del perfil de la Fase I.
+      required: [skills, location, modalities, jobTypes, experienceYears]
+      properties:
+        skills:
+          type: array
+          items:
+            type: string
+        location:
+          type: string
+        modalities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Modality'
+        jobTypes:
+          type: array
+          description: Disponibilidad (tiempo completo, medio tiempo, etc.)
+          items:
+            $ref: '#/components/schemas/JobType'
+        sectors:
+          type: array
+          items:
+            type: string
+        experienceYears:
+          type: integer
+          minimum: 0
+
+    AlertSettingsInput:
+      type: object
+      required: [enabled, minMatch, profile]
+      properties:
+        enabled:
+          type: boolean
+          description: Si recibe alertas de ofertas nuevas (mismo nombre que en la web)
+        minMatch:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Compatibilidad mínima para recibir la alerta (mismo nombre que en la web)
+          example: 70
+        profile:
+          $ref: '#/components/schemas/MatchingProfile'
+
+    AlertSettings:
+      allOf:
+        - $ref: '#/components/schemas/AlertSettingsInput'
+        - type: object
+          required: [updatedAt]
+          properties:
+            updatedAt:
+              $ref: '#/components/schemas/EpochMillis'
+
+    Page:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+          description: Cantidad total de elementos, no de páginas
+
+    JobOfferPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/JobOffer'
+
+    JobApplicationPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/JobApplication'
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: APPLICATION_ALREADY_EXISTS
+        message:
+          type: string
+          example: Ya te postulaste a esta oferta
