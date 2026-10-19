@@ -5,7 +5,7 @@ Microservicio de CVExpert que maneja las ofertas de trabajo, la compatibilidad d
 Es uno de los cinco microservicios de la Fase II. Solo lo llama Azure API Management (APIM): ningún otro servicio ni cliente le habla directo.
 
 - Spring Boot 4.1, Java 17, Maven.
-- PostgreSQL 16 con migraciones Flyway.
+- PostgreSQL 18 con migraciones Flyway (la misma versión en local, en las pruebas y en Azure).
 - Arquitectura hexagonal: el dominio no depende de Spring, JPA ni Azure.
 
 ## Arquitectura
@@ -57,7 +57,7 @@ Requisitos: JDK 17 o superior y Docker.
 
 ```bash
 cp .env.example .env        # y cambiar la contraseña
-docker compose up -d        # PostgreSQL 16 en localhost:5432
+docker compose up -d        # PostgreSQL 18 en localhost:5432
 set -a; . ./.env; set +a    # carga las variables en la terminal (Git Bash / Linux / macOS)
 ./mvnw spring-boot:run
 ```
@@ -77,13 +77,28 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 ```
 
 - Las pruebas del dominio no usan Spring ni base de datos.
-- La prueba de la aplicación levanta un PostgreSQL 16 en Docker con Testcontainers, así que Docker tiene que estar corriendo.
+- La prueba de la aplicación levanta un PostgreSQL 18 en Docker con Testcontainers, así que Docker tiene que estar corriendo.
 
 ## CI
 
 `.github/workflows/ci.yml` corre `./mvnw -B verify` (compila, prueba y arma el jar) en cada pull request a `main` y en cada push a `main`. El check se llama **pruebas** y es obligatorio para unir un PR. Un push nuevo a la misma rama cancela la corrida anterior. El reporte de las pruebas queda como artefacto `reporte-pruebas`.
 
 El despliegue al App Service se suma cuando existan los recursos de Azure, y saldrá solo desde `main`.
+
+## Despliegue en Azure
+
+Todo está en la suscripción Azure for Students de Andrés, en el grupo de recursos `rg-ofertas-postulaciones`, región **West US**:
+
+| Recurso | Nombre | Nivel |
+| --- | --- | --- |
+| Azure Database for PostgreSQL – Flexible Server | `psql-ofertas-andres` (base `ofertas_postulaciones`, usuario `ofertas`) | Burstable B1ms, 32 GB, PostgreSQL 18. Entra en los servicios gratuitos de 12 meses |
+| App Service (Linux, Java 17 SE) | `app-ofertas-andres` en el plan `plan-ofertas` | Basic B1, el más barato que admite certificados de cliente |
+
+- La app usa el usuario `ofertas`, dueño solo de su base; el administrador del servidor no se usa desde la app.
+- El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
+- El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio. App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
+- `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
+- Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
 ## Configuración
 
