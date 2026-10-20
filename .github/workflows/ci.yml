@@ -1,20 +1,22 @@
 name: CI
 
-# Pruebas en cada pull request a main y en cada push a main. El despliegue al App Service
-# se agrega cuando existan los recursos de Azure; también saldrá solo desde main.
+# Pruebas en cada pull request a main y en cada push a main. Después de un push a main que
+# cambia código, el jar probado se despliega al App Service.
 #
-# No hay filtro de rutas a propósito: el check "pruebas" es obligatorio para unir un PR, y
-# un PR que no lo dispara (por ejemplo, uno que solo cambia docs/) quedaría bloqueado.
+# No hay filtro de rutas en el disparador a propósito: el check "pruebas" es obligatorio para
+# unir un PR, y un PR que no lo dispara (por ejemplo, uno que solo cambia docs/) quedaría
+# bloqueado. El filtro de rutas está en el job "cambios" y solo decide si se despliega.
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
 
-# Un push nuevo a la misma rama cancela la corrida anterior que siga en curso.
+# En un PR, un push nuevo cancela la corrida anterior. En main no se cancela nada: cortar un
+# despliegue a la mitad puede dejar el App Service con una versión incompleta.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -35,8 +37,8 @@ jobs:
           java-version: '17'
           cache: maven
 
-      # verify compila, corre todas las pruebas y arma el jar. La prueba de la aplicación
-      # levanta PostgreSQL 16 con Testcontainers, usando el Docker que trae el runner.
+      # verify compila, corre todas las pruebas y arma el jar. Las pruebas de persistencia
+      # levantan PostgreSQL 18 con Testcontainers, usando el Docker que trae el runner.
       - name: Compilar y probar
         run: ./mvnw -B verify
 
@@ -47,3 +49,104 @@ jobs:
           name: reporte-pruebas
           path: target/surefire-reports/
           if-no-files-found: ignore
+
+      # Se despliega exactamente el jar que pasó las pruebas, no uno compilado de nuevo.
+      - name: Guardar el jar
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar
+          path: target/ofertas-postulaciones-*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  cambios:
+    name: cambios
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      codigo: ${{ steps.revisar.outputs.codigo }}
+
+    steps:
+      # Despliega solo si el push tocó algo que cambia el jar: código, recursos, el pom o el
+      # wrapper de Maven. Un push que solo cambia docs/ o el README no despliega.
+      - name: Revisar qué cambió
+        id: revisar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          archivos=$(gh api "repos/${{ github.repository }}/compare/$BEFORE...${{ github.sha }}" --jq '.files[].filename')
+          echo "$archivos"
+          if echo "$archivos" | grep -qE '^(src/main/|pom\.xml$|\.mvn/|mvnw)'; then
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "codigo=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  desplegar:
+    name: desplegar
+    needs: [pruebas, cambios]
+    if: needs.cambios.outputs.codigo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Un solo despliegue a la vez; el siguiente espera en vez de cancelar al que va a la mitad.
+    concurrency:
+      group: despliegue-app-service
+      cancel-in-progress: false
+
+    # id-token permite pedirle a GitHub el token OIDC que Azure cambia por acceso. No hay
+    # contraseñas: Azure solo acepta tokens de main de este repo (credencial federada de la
+    # identidad administrada id-github-ofertas, con rol Website Contributor solo sobre la app).
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Descargar el jar
+        uses: actions/download-artifact@v4
+        with:
+          name: jar
+          path: paquete
+
+      - name: Renombrar a app.jar
+        run: mv paquete/ofertas-postulaciones-*.jar paquete/app.jar
+
+      - name: Iniciar sesión en Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Desplegar al App Service
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          package: paquete/app.jar
+          type: JAR
+          clean: true
+
+      # Java en un plan B1 tarda en arrancar; se espera hasta 5 minutos. /actuator/health es la
+      # única ruta excluida del certificado de cliente, y responde UP solo si la app arrancó,
+      # aplicó las migraciones y tiene conexión con la base.
+      - name: Prueba de humo
+        env:
+          URL: ${{ steps.deploy.outputs.webapp-url }}
+        run: |
+          for intento in $(seq 1 30); do
+            respuesta=$(curl -s -m 10 "$URL/actuator/health" || true)
+            echo "Intento $intento: $respuesta"
+            if echo "$respuesta" | grep -q '"status":"UP"'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "La app no respondió UP. Revisar el log stream del App Service."
+          exit 1
