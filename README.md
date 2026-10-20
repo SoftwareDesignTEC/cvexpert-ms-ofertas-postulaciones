@@ -134,7 +134,7 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 
 ## Configuración
 
-Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde el Key Vault `kv-cvexpert`.
+Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde las variables de entorno del App Service. Cuando exista el Key Vault del grupo, esas variables pasan a ser referencias `@Microsoft.KeyVault(...)` sin cambiar el código.
 
 | Variable | Para qué |
 | --- | --- |

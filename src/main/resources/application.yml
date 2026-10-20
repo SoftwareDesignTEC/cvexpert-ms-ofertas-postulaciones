@@ -1,5 +1,5 @@
 # Configuración del servicio. Ningún valor real vive aquí: las URLs y credenciales llegan
-# por variables de entorno (en local desde .env, en Azure desde el Key Vault kv-cvexpert).
+# por variables de entorno (en local desde .env, en Azure desde las variables de entorno del App Service).
 server:
   port: ${PORT:8080}
 
