@@ -100,9 +100,17 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 
 ## CI
 
-`.github/workflows/ci.yml` corre `./mvnw -B verify` (compila, prueba y arma el jar) en cada pull request a `main` y en cada push a `main`. El check se llama **pruebas** y es obligatorio para unir un PR. Un push nuevo a la misma rama cancela la corrida anterior. El reporte de las pruebas queda como artefacto `reporte-pruebas`.
+`.github/workflows/ci.yml` tiene tres jobs:
 
-El despliegue al App Service se suma cuando existan los recursos de Azure, y saldrá solo desde `main`.
+| Job | Cuándo | Qué hace |
+| --- | --- | --- |
+| **pruebas** | Cada PR a `main` y cada push a `main` | `./mvnw -B verify`: compila, prueba y arma el jar. Es obligatorio para unir un PR. El reporte queda como artefacto `reporte-pruebas` |
+| **cambios** | Push a `main` | Revisa si el push tocó `src/main/`, `pom.xml` o el wrapper de Maven. Si solo cambió documentación, no se despliega |
+| **desplegar** | Push a `main` con cambios de código, o corrida manual sobre `main` (Actions → CI → Run workflow), después de **pruebas** | Despliega al App Service el mismo jar que pasó las pruebas y espera a que `/actuator/health` responda `UP` |
+
+- En un PR, un push nuevo cancela la corrida anterior. En `main` no se cancela nada, para no cortar un despliegue a la mitad.
+- GitHub entra a Azure con OIDC, sin contraseñas: la identidad administrada `id-github-ofertas` tiene una credencial federada que solo acepta tokens de `main` de este repo, y el rol **Website Contributor** solo sobre `app-ofertas-andres`.
+- Secretos del repo: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID` (identificadores, no contraseñas). Variable: `AZURE_WEBAPP_NAME`.
 
 ## Despliegue en Azure
 
@@ -115,7 +123,7 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 
 - La app usa el usuario `ofertas`, dueño solo de su base; el administrador del servidor no se usa desde la app.
 - El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
-- El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio. App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
+- El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
 - `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
 - Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
@@ -135,7 +143,7 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] Proyecto base, estructura hexagonal y pruebas.
 - [x] Borrador del contrato OpenAPI (`docs/openapi.yaml`). Falta confirmar con la exportación de APIM las 5 operaciones marcadas `por-confirmar-apim`.
 - [x] CI con pruebas en cada PR.
-- [ ] Despliegue al App Service desde `main`.
+- [x] Despliegue al App Service desde `main`.
 - [x] Dominio, persistencia y casos de uso: modelos, los 11 casos de uso, migración V1 y adaptador JPA, con pruebas.
 - [ ] Controladores REST (adaptador `in/web`).
 - [ ] Compatibilidad, alertas y evento `job.new`.
