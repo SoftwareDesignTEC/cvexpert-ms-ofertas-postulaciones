@@ -122,7 +122,11 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 | Azure Database for PostgreSQL – Flexible Server | `psql-ofertas-andres` (base `ofertas_postulaciones`, usuario `ofertas`) | Burstable B1ms, 32 GB, PostgreSQL 18. Entra en los servicios gratuitos de 12 meses |
 | App Service (Linux, Java 17 SE) | `app-ofertas-andres` en el plan `plan-ofertas` | Basic B1, el más barato que admite certificados de cliente |
 
-- La app usa el usuario `ofertas`, dueño solo de su base; el administrador del servidor no se usa desde la app.
+- La app usa el usuario `ofertas`; el administrador del servidor (`adminofertas`) no se usa desde la app. `ofertas` tiene `USAGE` y `CREATE` sobre el esquema `public` de `ofertas_postulaciones`, y nada en otras bases. Ese permiso hace falta porque desde PostgreSQL 15 solo el dueño de la base puede crear tablas en `public`; sin él, Flyway falla al arrancar con `permission denied for schema public`. Se otorga una vez, conectado a esa base como administrador:
+
+  ```sql
+  GRANT USAGE, CREATE ON SCHEMA public TO ofertas;
+  ```
 - El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
 - El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
 - `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
