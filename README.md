@@ -14,6 +14,7 @@ Es uno de los cinco microservicios de la Fase II. Solo lo llama Azure API Manage
 com.cvexpert.ofertas
 ├── domain/            Núcleo: reglas del negocio, sin dependencias de infraestructura
 │   ├── model/         Entidades y valores (oferta, postulación, estados)
+│   ├── exception/     Errores del negocio (no encontrado, ya postulado, sin permiso, datos inválidos)
 │   └── port/
 │       ├── in/        Casos de uso que ofrece el servicio
 │       └── out/       Lo que el dominio necesita: guardar datos, publicar eventos
@@ -27,6 +28,24 @@ com.cvexpert.ofertas
 ```
 
 Cada paquete tiene un `package-info.java` que explica qué va ahí.
+
+Cada operación del contrato es un caso de uso en `domain/port/in` (`ApplyToJobUseCase`, `AdminChangeStatusUseCase`, etc.). Los servicios de `application/` los implementan usando solo los puertos de salida, y `config/UseCaseConfig` los arma con los adaptadores. Por eso los servicios se prueban con repositorios en memoria, sin Spring ni base de datos.
+
+## Modelo de datos
+
+El esquema lo crea Flyway (`src/main/resources/db/migration`). Hibernate solo valida que el mapeo coincida (`ddl-auto: validate`).
+
+| Tabla | Qué guarda |
+| --- | --- |
+| `job_offers` | Ofertas. `skills` y `requirements` son `text[]`. El salario va completo (mínimo, máximo y moneda) o no va |
+| `job_applications` | Postulaciones, con copia del título, la empresa, el logo, la ubicación y la modalidad de la oferta |
+
+- **Llave foránea** de `job_applications.job_offer_id` a `job_offers.id`.
+- **`UNIQUE (job_offer_id, user_id)`**: una sola postulación por usuario y oferta. El servicio lo revisa antes de guardar, y la restricción cubre dos solicitudes simultáneas. El adaptador la traduce a `APPLICATION_ALREADY_EXISTS` (409).
+- **`CHECK`** en estado, modalidad, tipo de jornada, experiencia y salario, con los mismos valores que viajan en JSON (`in-progress`, `on-site`, `full-time`…).
+- **Borrado lógico de ofertas** (`deleted_at`): una oferta borrada deja de aparecer, pero sus postulaciones siguen apuntando a un id válido y la llave foránea nunca se rompe.
+- **Fechas** en `bigint` con epoch milisegundos UTC, igual que en la API.
+- Los ids son `bigint` en la base y viajan como texto en JSON.
 
 ## Identidad
 
@@ -117,6 +136,8 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] Borrador del contrato OpenAPI (`docs/openapi.yaml`). Falta confirmar con la exportación de APIM las 5 operaciones marcadas `por-confirmar-apim`.
 - [x] CI con pruebas en cada PR.
 - [ ] Despliegue al App Service desde `main`.
-- [ ] Dominio, persistencia y casos de uso.
-- [ ] Publicación de eventos en Service Bus.
+- [x] Dominio, persistencia y casos de uso: modelos, los 11 casos de uso, migración V1 y adaptador JPA, con pruebas.
+- [ ] Controladores REST (adaptador `in/web`).
+- [ ] Compatibilidad, alertas y evento `job.new`.
+- [ ] Publicación de eventos en Service Bus. Hoy `LoggingEventPublisher` es un stub que escribe `application.status_changed` en el log; falta el esquema del mensaje (Samuel) y la cola `notificaciones-eventos`.
 - [ ] Certificado de cliente de APIM.
