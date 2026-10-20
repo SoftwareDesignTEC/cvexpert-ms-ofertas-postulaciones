@@ -110,6 +110,7 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 
 - En un PR, un push nuevo cancela la corrida anterior. En `main` no se cancela nada, para no cortar un despliegue a la mitad.
 - GitHub entra a Azure con OIDC, sin contraseñas: la identidad administrada `id-github-ofertas` tiene una credencial federada que solo acepta tokens de `main` de este repo, y el rol **Website Contributor** solo sobre `app-ofertas-andres`.
+- La organización usa el formato de *subject* con ids numéricos, así que la credencial federada espera `repo:SoftwareDesignTEC@328866100/cvexpert-ms-ofertas-postulaciones@1424842742:ref:refs/heads/main`. Con el formato sin ids (`repo:SoftwareDesignTEC/cvexpert-ms-ofertas-postulaciones:...`) Azure responde `AADSTS700213`. El subject exacto que manda GitHub aparece en el log del paso "Iniciar sesión en Azure".
 - Secretos del repo: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID` (identificadores, no contraseñas). Variable: `AZURE_WEBAPP_NAME`.
 
 ## Despliegue en Azure
@@ -121,7 +122,11 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 | Azure Database for PostgreSQL – Flexible Server | `psql-ofertas-andres` (base `ofertas_postulaciones`, usuario `ofertas`) | Burstable B1ms, 32 GB, PostgreSQL 18. Entra en los servicios gratuitos de 12 meses |
 | App Service (Linux, Java 17 SE) | `app-ofertas-andres` en el plan `plan-ofertas` | Basic B1, el más barato que admite certificados de cliente |
 
-- La app usa el usuario `ofertas`, dueño solo de su base; el administrador del servidor no se usa desde la app.
+- La app usa el usuario `ofertas`; el administrador del servidor (`adminofertas`) no se usa desde la app. `ofertas` tiene `USAGE` y `CREATE` sobre el esquema `public` de `ofertas_postulaciones`, y nada en otras bases. Ese permiso hace falta porque desde PostgreSQL 15 solo el dueño de la base puede crear tablas en `public`; sin él, Flyway falla al arrancar con `permission denied for schema public`. Se otorga una vez, conectado a esa base como administrador:
+
+  ```sql
+  GRANT USAGE, CREATE ON SCHEMA public TO ofertas;
+  ```
 - El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
 - El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
 - `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
@@ -129,7 +134,7 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 
 ## Configuración
 
-Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde el Key Vault `kv-cvexpert`.
+Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde las variables de entorno del App Service. Cuando exista el Key Vault del grupo, esas variables pasan a ser referencias `@Microsoft.KeyVault(...)` sin cambiar el código.
 
 | Variable | Para qué |
 | --- | --- |
