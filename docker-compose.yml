@@ -11,7 +11,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER en .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
     ports:
-      - "5432:5432"
+      # El puerto local se cambia con POSTGRES_PORT en .env si el 5432 ya está ocupado
+      # (por ejemplo, por un PostgreSQL instalado en Windows).
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       # Desde PostgreSQL 18 la imagen guarda los datos en /var/lib/postgresql/18/docker:
       # el volumen se monta en /var/lib/postgresql (con la ruta vieja .../data no arranca).

@@ -76,7 +76,7 @@ Requisitos: JDK 17 o superior y Docker.
 
 ```bash
 cp .env.example .env        # y cambiar la contraseña
-docker compose up -d        # PostgreSQL 18 en localhost:5432
+docker compose up -d        # PostgreSQL 18 en localhost:5432 (o en POSTGRES_PORT)
 set -a; . ./.env; set +a    # carga las variables en la terminal (Git Bash / Linux / macOS)
 ./mvnw spring-boot:run
 ```
