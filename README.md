@@ -106,7 +106,7 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 | --- | --- | --- |
 | **pruebas** | Cada PR a `main` y cada push a `main` | `./mvnw -B verify`: compila, prueba y arma el jar. Es obligatorio para unir un PR. El reporte queda como artefacto `reporte-pruebas` |
 | **cambios** | Push a `main` | Revisa si el push tocó `src/main/`, `pom.xml` o el wrapper de Maven. Si solo cambió documentación, no se despliega |
-| **desplegar** | Push a `main` con cambios de código, después de **pruebas** | Despliega al App Service el mismo jar que pasó las pruebas y espera a que `/actuator/health` responda `UP` |
+| **desplegar** | Push a `main` con cambios de código, o corrida manual sobre `main` (Actions → CI → Run workflow), después de **pruebas** | Despliega al App Service el mismo jar que pasó las pruebas y espera a que `/actuator/health` responda `UP` |
 
 - En un PR, un push nuevo cancela la corrida anterior. En `main` no se cancela nada, para no cortar un despliegue a la mitad.
 - GitHub entra a Azure con OIDC, sin contraseñas: la identidad administrada `id-github-ofertas` tiene una credencial federada que solo acepta tokens de `main` de este repo, y el rol **Website Contributor** solo sobre `app-ofertas-andres`.

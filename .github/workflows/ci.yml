@@ -1,7 +1,8 @@
 name: CI
 
 # Pruebas en cada pull request a main y en cada push a main. Después de un push a main que
-# cambia código, el jar probado se despliega al App Service.
+# cambia código, el jar probado se despliega al App Service. También se puede correr a mano
+# (Actions > CI > Run workflow, sobre main) para desplegar aunque no haya cambios de código.
 #
 # No hay filtro de rutas en el disparador a propósito: el check "pruebas" es obligatorio para
 # unir un PR, y un PR que no lo dispara (por ejemplo, uno que solo cambia docs/) quedaría
@@ -11,6 +12,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 # En un PR, un push nuevo cancela la corrida anterior. En main no se cancela nada: cortar un
 # despliegue a la mitad puede dejar el App Service con una versión incompleta.
@@ -52,7 +54,7 @@ jobs:
 
       # Se despliega exactamente el jar que pasó las pruebas, no uno compilado de nuevo.
       - name: Guardar el jar
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: jar
@@ -62,21 +64,22 @@ jobs:
 
   cambios:
     name: cambios
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       codigo: ${{ steps.revisar.outputs.codigo }}
 
     steps:
       # Despliega solo si el push tocó algo que cambia el jar: código, recursos, el pom o el
-      # wrapper de Maven. Un push que solo cambia docs/ o el README no despliega.
+      # wrapper de Maven. Un push que solo cambia docs/ o el README no despliega. Una corrida
+      # manual siempre despliega.
       - name: Revisar qué cambió
         id: revisar
         env:
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event.before }}
         run: |
-          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
             echo "codigo=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -91,7 +94,9 @@ jobs:
   desplegar:
     name: desplegar
     needs: [pruebas, cambios]
-    if: needs.cambios.outputs.codigo == 'true'
+    # La credencial federada solo acepta main, así que una corrida manual sobre otra rama no
+    # despliega.
+    if: needs.cambios.outputs.codigo == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
