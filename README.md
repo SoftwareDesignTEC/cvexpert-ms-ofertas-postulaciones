@@ -110,6 +110,7 @@ El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"
 
 - En un PR, un push nuevo cancela la corrida anterior. En `main` no se cancela nada, para no cortar un despliegue a la mitad.
 - GitHub entra a Azure con OIDC, sin contraseñas: la identidad administrada `id-github-ofertas` tiene una credencial federada que solo acepta tokens de `main` de este repo, y el rol **Website Contributor** solo sobre `app-ofertas-andres`.
+- La organización usa el formato de *subject* con ids numéricos, así que la credencial federada espera `repo:SoftwareDesignTEC@328866100/cvexpert-ms-ofertas-postulaciones@1424842742:ref:refs/heads/main`. Con el formato sin ids (`repo:SoftwareDesignTEC/cvexpert-ms-ofertas-postulaciones:...`) Azure responde `AADSTS700213`. El subject exacto que manda GitHub aparece en el log del paso "Iniciar sesión en Azure".
 - Secretos del repo: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` y `AZURE_SUBSCRIPTION_ID` (identificadores, no contraseñas). Variable: `AZURE_WEBAPP_NAME`.
 
 ## Despliegue en Azure
