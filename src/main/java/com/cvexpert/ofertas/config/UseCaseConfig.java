@@ -2,8 +2,12 @@ package com.cvexpert.ofertas.config;
 
 import com.cvexpert.ofertas.adapter.out.messaging.LoggingEventPublisher;
 import com.cvexpert.ofertas.adapter.out.messaging.ServiceBusEventPublisher;
+import com.cvexpert.ofertas.application.AlertService;
 import com.cvexpert.ofertas.application.JobApplicationService;
 import com.cvexpert.ofertas.application.JobOfferService;
+import com.cvexpert.ofertas.domain.model.CompatibilityCalculator;
+import com.cvexpert.ofertas.domain.model.MatchWeights;
+import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
 import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
@@ -41,9 +45,25 @@ public class UseCaseConfig {
         return new ServiceBusEventPublisher(connectionString, json);
     }
 
+    /** Pesos de la compatibilidad, configurables en {@code application.yml} (matching.weights). */
     @Bean
-    JobOfferService jobOfferService(JobOfferRepository offers, Clock clock) {
-        return new JobOfferService(offers, clock);
+    CompatibilityCalculator compatibilityCalculator(
+            @Value("${matching.weights.skills:40}") int skills,
+            @Value("${matching.weights.location:20}") int location,
+            @Value("${matching.weights.availability:20}") int availability,
+            @Value("${matching.weights.experience:20}") int experience) {
+        return new CompatibilityCalculator(new MatchWeights(skills, location, availability, experience));
+    }
+
+    @Bean
+    JobOfferService jobOfferService(JobOfferRepository offers, AlertSettingsRepository alerts,
+            CompatibilityCalculator compatibility, EventPublisher events, Clock clock) {
+        return new JobOfferService(offers, alerts, compatibility, events, clock);
+    }
+
+    @Bean
+    AlertService alertService(AlertSettingsRepository alerts, Clock clock) {
+        return new AlertService(alerts, clock);
     }
 
     @Bean

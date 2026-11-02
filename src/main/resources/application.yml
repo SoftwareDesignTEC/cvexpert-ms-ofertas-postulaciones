@@ -23,6 +23,15 @@ spring:
 servicebus:
   connection-string: ${SERVICEBUS_CONNECTION_STRING:}
 
+# Pesos de la compatibilidad de una oferta con el perfil (ver CompatibilityCalculator). No
+# tienen que sumar 100: el puntaje se normaliza con la suma.
+matching:
+  weights:
+    skills: 40
+    location: 20
+    availability: 20
+    experience: 20
+
 management:
   endpoints:
     web:
