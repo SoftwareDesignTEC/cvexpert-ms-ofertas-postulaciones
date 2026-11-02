@@ -32,6 +32,11 @@ matching:
     availability: 20
     experience: 20
 
+# Huella SHA-1 del certificado de cliente de APIM (varias separadas por coma). Si está vacía no se
+# valida el certificado, que es lo que pasa en local y en las pruebas.
+apim:
+  cert-thumbprint: ${APIM_CERT_THUMBPRINT:}
+
 management:
   endpoints:
     web:
