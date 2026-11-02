@@ -21,12 +21,12 @@ import java.util.Set;
  * Implementaciones en memoria de los puertos de salida. Con ellas los servicios se prueban sin
  * Spring ni base de datos: es la ventaja de que el dominio dependa de interfaces.
  */
-final class InMemoryRepositories {
+public final class InMemoryRepositories {
 
     private InMemoryRepositories() {
     }
 
-    static final class Offers implements JobOfferRepository {
+    public static final class Offers implements JobOfferRepository {
         private final Map<Long, JobOffer> rows = new LinkedHashMap<>();
         private final Set<Long> deleted = new HashSet<>();
         private long nextId = 1;
@@ -55,7 +55,7 @@ final class InMemoryRepositories {
         }
     }
 
-    static final class Applications implements JobApplicationRepository {
+    public static final class Applications implements JobApplicationRepository {
         private final Map<Long, JobApplication> rows = new LinkedHashMap<>();
         private long nextId = 1;
         int saves;
@@ -98,8 +98,8 @@ final class InMemoryRepositories {
     }
 
     /** Guarda los eventos en una lista para revisarlos en la prueba. */
-    static final class RecordingPublisher implements EventPublisher {
-        final List<ApplicationStatusChanged> published = new ArrayList<>();
+    public static final class RecordingPublisher implements EventPublisher {
+        public final List<ApplicationStatusChanged> published = new ArrayList<>();
 
         @Override
         public void publish(ApplicationStatusChanged event) {
