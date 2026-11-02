@@ -1,10 +1,12 @@
 package com.cvexpert.ofertas.adapter.out.persistence;
 
+import com.cvexpert.ofertas.domain.model.AlertSettings;
 import com.cvexpert.ofertas.domain.model.ApplicationStatus;
 import com.cvexpert.ofertas.domain.model.JobApplication;
 import com.cvexpert.ofertas.domain.model.JobOffer;
 import com.cvexpert.ofertas.domain.model.JobOfferDetails;
 import com.cvexpert.ofertas.domain.model.JobType;
+import com.cvexpert.ofertas.domain.model.MatchingProfile;
 import com.cvexpert.ofertas.domain.model.Modality;
 import com.cvexpert.ofertas.domain.model.Salary;
 import java.util.ArrayList;
@@ -66,6 +68,28 @@ final class PersistenceMapper {
         e.status = a.status().wireValue();
         e.notes = a.notes();
         e.updatedAt = a.updatedAt();
+    }
+
+    static AlertSettings toDomain(AlertSettingsEntity e) {
+        MatchingProfile profile = new MatchingProfile(e.skills, e.location,
+                e.modalities.stream().map(PersistenceMapper::modality).toList(),
+                e.jobTypes.stream().map(PersistenceMapper::jobType).toList(),
+                e.sectors, e.experienceYears);
+        return new AlertSettings(e.userId, e.enabled, e.minMatch, profile, e.updatedAt);
+    }
+
+    static void copy(AlertSettings s, AlertSettingsEntity e) {
+        MatchingProfile p = s.profile();
+        e.userId = s.userId();
+        e.enabled = s.enabled();
+        e.minMatch = s.minMatch();
+        e.skills = new ArrayList<>(p.skills());
+        e.location = p.location();
+        e.modalities = new ArrayList<>(p.modalities().stream().map(Modality::wireValue).toList());
+        e.jobTypes = new ArrayList<>(p.jobTypes().stream().map(JobType::wireValue).toList());
+        e.sectors = new ArrayList<>(p.sectors());
+        e.experienceYears = p.experienceYears();
+        e.updatedAt = s.updatedAt();
     }
 
     // Los CHECK de la tabla garantizan valores válidos; si aparece otro, la base se tocó a mano.
