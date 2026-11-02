@@ -4,6 +4,7 @@ import com.azure.messaging.servicebus.ServiceBusClientBuilder;
 import com.azure.messaging.servicebus.ServiceBusMessage;
 import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import com.cvexpert.ofertas.domain.model.ApplicationStatusChanged;
+import com.cvexpert.ofertas.domain.model.NewJobMatched;
 import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -42,13 +43,20 @@ public class ServiceBusEventPublisher implements EventPublisher, AutoCloseable {
 
     @Override
     public void publish(ApplicationStatusChanged event) {
-        NotificationMessage message = NotificationMessage.statusChanged(event, eventIds.get());
+        send(NotificationMessage.statusChanged(event, eventIds.get()));
+    }
+
+    @Override
+    public void publish(NewJobMatched event) {
+        send(NotificationMessage.newJob(event, eventIds.get()));
+    }
+
+    private void send(NotificationMessage message) {
         try {
             sender.sendMessage(toServiceBusMessage(message, json));
-            log.info("Publicado {} {} para la postulación {}", message.type(), message.eventId(), event.applicationId());
+            log.info("Publicado {} {} para {}", message.type(), message.eventId(), message.userId());
         } catch (RuntimeException e) {
-            log.error("No se pudo publicar {} {} para la postulación {}", message.type(), message.eventId(),
-                    event.applicationId(), e);
+            log.error("No se pudo publicar {} {} para {}", message.type(), message.eventId(), message.userId(), e);
         }
     }
 
