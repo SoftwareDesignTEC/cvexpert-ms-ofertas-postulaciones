@@ -18,6 +18,11 @@ spring:
   flyway:
     locations: classpath:db/migration
 
+# Cadena de solo envío a la cola notificaciones-eventos (ServiceBus--SendConnectionString en el
+# Key Vault). Si está vacía, los eventos solo se escriben en el log.
+servicebus:
+  connection-string: ${SERVICEBUS_CONNECTION_STRING:}
+
 management:
   endpoints:
     web:

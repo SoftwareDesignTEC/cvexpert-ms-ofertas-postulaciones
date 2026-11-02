@@ -28,6 +28,8 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+		<!-- Cliente oficial de Azure Service Bus. Spring Boot no maneja su versión. -->
+		<azure-servicebus.version>7.18.1</azure-servicebus.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -53,6 +55,12 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+		<!-- Publica los eventos para Notificaciones en la cola de Service Bus. -->
+		<dependency>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-messaging-servicebus</artifactId>
+			<version>${azure-servicebus.version}</version>
 		</dependency>
 
 		<dependency>

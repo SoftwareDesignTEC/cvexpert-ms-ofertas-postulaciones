@@ -1,14 +1,17 @@
 package com.cvexpert.ofertas.config;
 
 import com.cvexpert.ofertas.adapter.out.messaging.LoggingEventPublisher;
+import com.cvexpert.ofertas.adapter.out.messaging.ServiceBusEventPublisher;
 import com.cvexpert.ofertas.application.JobApplicationService;
 import com.cvexpert.ofertas.application.JobOfferService;
 import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
 import java.time.Clock;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Arma los casos de uso. Los servicios no llevan anotaciones de Spring: se crean aquí y reciben los
@@ -24,10 +27,18 @@ public class UseCaseConfig {
         return Clock.systemUTC();
     }
 
-    // TODO: cambiar por el adaptador de Service Bus cuando exista el esquema de Samuel.
+    /**
+     * Service Bus si hay cadena de conexión ({@code SERVICEBUS_CONNECTION_STRING}); si no, el stub
+     * que escribe en el log. Así las pruebas y el desarrollo local no necesitan Azure. Spring
+     * cierra la conexión con Service Bus al apagar la app.
+     */
     @Bean
-    EventPublisher eventPublisher() {
-        return new LoggingEventPublisher();
+    EventPublisher eventPublisher(@Value("${servicebus.connection-string:}") String connectionString,
+            JsonMapper json) {
+        if (connectionString.isBlank()) {
+            return new LoggingEventPublisher();
+        }
+        return new ServiceBusEventPublisher(connectionString, json);
     }
 
     @Bean
