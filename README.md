@@ -68,7 +68,9 @@ Publica en la cola `notificaciones-eventos` de Azure Service Bus, con el esquema
 | `application.status_changed` | Un administrador cambia el estado de una postulación (ruta de administración). Cuando la persona mueve su propia tarjeta o se postula, no se publica nada. |
 | `job.new` | Se crea una oferta: un mensaje por cada usuario cuya compatibilidad alcanza el mínimo que fijó. |
 
-Las fechas viajan siempre en epoch milisegundos UTC.
+Cada mensaje es un JSON con `schemaVersion` (1), `eventId` (uuid v4), `type`, `userId` (el `sub` de Google de quien recibe el aviso), `occurredAt` (epoch milisegundos UTC), `source` (`ofertas-postulaciones`) y `data`. Los ids dentro de `data` van como texto. En Service Bus, `messageId` es el `eventId`, `subject` es el `type` y `contentType` es `application/json`. Un mensaje que no cumple el esquema termina en la cola de errores de Notificaciones; `NotificationMessageTest` revisa la forma exacta.
+
+Si el envío falla, se registra en el log y la solicitud responde igual, porque el cambio ya quedó guardado.
 
 ## Correr en local
 
@@ -142,6 +144,7 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 | `DB_USER` | Usuario de la base, con permisos solo sobre `ofertas_postulaciones` |
 | `DB_PASSWORD` | Su contraseña |
 | `PORT` | Puerto HTTP (8080 si no se define) |
+| `SERVICEBUS_CONNECTION_STRING` | Cadena de solo envío a la cola `notificaciones-eventos` (`ServiceBus--SendConnectionString` en `kv-cvexpert`). Si no está, los eventos solo se escriben en el log, que es lo que pasa en local y en las pruebas |
 
 ## Estado
 
@@ -150,7 +153,9 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] CI con pruebas en cada PR.
 - [x] Despliegue al App Service desde `main`.
 - [x] Dominio, persistencia y casos de uso: modelos, los 11 casos de uso, migración V1 y adaptador JPA, con pruebas.
-- [ ] Controladores REST (adaptador `in/web`).
+- [x] Rutas de postulaciones (`/applications` y `/admin/applications/{id}/status`), con la identidad tomada de los encabezados de APIM y los errores del contrato.
+- [ ] Rutas de ofertas y alertas.
 - [ ] Compatibilidad, alertas y evento `job.new`.
-- [ ] Publicación de eventos en Service Bus. Hoy `LoggingEventPublisher` es un stub que escribe `application.status_changed` en el log; falta el esquema del mensaje (Samuel) y la cola `notificaciones-eventos`.
+- [x] Publicación de `application.status_changed` en Service Bus con el esquema de Notificaciones.
+- [ ] `SERVICEBUS_CONNECTION_STRING` en el App Service (referencia al Key Vault; falta que Justin le dé acceso a la identidad del App Service).
 - [ ] Certificado de cliente de APIM.
