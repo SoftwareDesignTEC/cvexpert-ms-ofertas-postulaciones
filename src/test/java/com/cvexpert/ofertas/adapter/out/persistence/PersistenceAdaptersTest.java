@@ -11,14 +11,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.cvexpert.ofertas.Fixtures;
 import com.cvexpert.ofertas.TestcontainersConfiguration;
 import com.cvexpert.ofertas.domain.exception.AlreadyAppliedException;
+import com.cvexpert.ofertas.domain.model.AlertSettings;
 import com.cvexpert.ofertas.domain.model.ApplicationStatus;
 import com.cvexpert.ofertas.domain.model.JobApplication;
 import com.cvexpert.ofertas.domain.model.JobOffer;
 import com.cvexpert.ofertas.domain.model.JobOfferDetails;
 import com.cvexpert.ofertas.domain.model.JobType;
+import com.cvexpert.ofertas.domain.model.MatchingProfile;
 import com.cvexpert.ofertas.domain.model.Modality;
 import com.cvexpert.ofertas.domain.model.PageQuery;
 import com.cvexpert.ofertas.domain.model.PageResult;
+import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
 import java.util.List;
@@ -45,6 +48,9 @@ class PersistenceAdaptersTest {
 
     @Autowired
     JobApplicationRepository applications;
+
+    @Autowired
+    AlertSettingsRepository alerts;
 
     private JobOffer publish(String title, long postedAt) {
         return offers.save(JobOffer.publish(Fixtures.details(title), postedAt));
@@ -184,5 +190,39 @@ class PersistenceAdaptersTest {
         applications.delete(a.id());
 
         assertTrue(applications.findById(a.id()).isEmpty());
+    }
+
+    private static MatchingProfile profile(String location) {
+        return new MatchingProfile(List.of("Kotlin", "Git"), location, List.of(Modality.REMOTE, Modality.HYBRID),
+                List.of(JobType.FULL_TIME, JobType.INTERNSHIP), List.of("Tecnología"), 2);
+    }
+
+    @Test
+    void alertSettingsComeBackExactlyAsSaved() {
+        AlertSettings saved = alerts.save(new AlertSettings(ANA.userId(), true, 70, profile("San José"), NOW));
+
+        assertEquals(saved, alerts.findByUser(ANA.userId()).orElseThrow());
+        assertTrue(alerts.findByUser(LUIS.userId()).isEmpty());
+    }
+
+    @Test
+    void savingAgainReplacesTheSettings() {
+        alerts.save(new AlertSettings(ANA.userId(), true, 70, profile("San José"), NOW));
+
+        alerts.save(new AlertSettings(ANA.userId(), false, 40, profile("Cartago"), NOW + 1));
+
+        AlertSettings read = alerts.findByUser(ANA.userId()).orElseThrow();
+        assertFalse(read.enabled());
+        assertEquals(40, read.minMatch());
+        assertEquals("Cartago", read.profile().location());
+        assertEquals(NOW + 1, read.updatedAt());
+    }
+
+    @Test
+    void onlyEnabledSettingsAreAlertCandidates() {
+        alerts.save(new AlertSettings(ANA.userId(), true, 70, profile("San José"), NOW));
+        alerts.save(new AlertSettings(LUIS.userId(), false, 70, profile("San José"), NOW));
+
+        assertEquals(List.of(ANA.userId()), alerts.findEnabled().stream().map(AlertSettings::userId).toList());
     }
 }

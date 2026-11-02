@@ -39,6 +39,7 @@ El esquema lo crea Flyway (`src/main/resources/db/migration`). Hibernate solo va
 | --- | --- |
 | `job_offers` | Ofertas. `skills` y `requirements` son `text[]`. El salario va completo (mínimo, máximo y moneda) o no va |
 | `job_applications` | Postulaciones, con copia del título, la empresa, el logo, la ubicación y la modalidad de la oferta |
+| `alert_settings` | Una fila por usuario: si quiere alertas, su mínimo de compatibilidad y su perfil de emparejamiento (habilidades, ubicación, modalidades, tipos de jornada, sectores y años de experiencia) |
 
 - **Llave foránea** de `job_applications.job_offer_id` a `job_offers.id`.
 - **`UNIQUE (job_offer_id, user_id)`**: una sola postulación por usuario y oferta. El servicio lo revisa antes de guardar, y la restricción cubre dos solicitudes simultáneas. El adaptador la traduce a `APPLICATION_ALREADY_EXISTS` (409).
@@ -58,6 +59,21 @@ APIM valida el token de Google y le pasa al servicio la identidad en encabezados
 | `X-User-Role` | Solo en las rutas de administración |
 
 El servicio no recibe ni valida tokens de Google, y rechaza las llamadas que no traen el certificado de cliente de APIM.
+
+## Compatibilidad
+
+`matchScore` (0 a 100) compara la oferta con el perfil de emparejamiento que el usuario guardó en `PUT /alerts`. Si no ha guardado perfil, `matchScore` no viene. Cada criterio da una fracción entre 0 y 1 y se pondera:
+
+| Criterio | Peso | Cómo se mide |
+| --- | --- | --- |
+| Habilidades | 40 | Parte de las habilidades de la oferta que el usuario tiene, sin distinguir mayúsculas ni espacios. Si la oferta no pide ninguna, completo |
+| Ubicación | 20 | Completo si la oferta es remota o si la ubicación coincide; si no, 0 |
+| Disponibilidad | 20 | Completo si el tipo de jornada de la oferta está entre los que acepta el usuario, o si no indicó ninguno |
+| Experiencia | 20 | Completo si cumple los años mínimos; si le faltan, proporcional (1 de 2 años da la mitad) |
+
+Los pesos están en `application.yml` (`matching.weights`) y se pueden cambiar sin tocar código. No tienen que sumar 100: el puntaje se normaliza con la suma. La lógica está en `CompatibilityCalculator`, dentro del dominio, y `CompatibilityCalculatorTest` cubre cada criterio.
+
+Al crear una oferta se calcula la compatibilidad con cada usuario que tiene alertas activas, y se publica un `job.new` para cada uno cuyo puntaje es mayor o igual a su `minMatch`. Editar una oferta no vuelve a avisar.
 
 ## Eventos
 
@@ -154,8 +170,8 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] Despliegue al App Service desde `main`.
 - [x] Dominio, persistencia y casos de uso: modelos, los 11 casos de uso, migración V1 y adaptador JPA, con pruebas.
 - [x] Rutas de postulaciones (`/applications` y `/admin/applications/{id}/status`), con la identidad tomada de los encabezados de APIM y los errores del contrato.
-- [ ] Rutas de ofertas y alertas.
-- [ ] Compatibilidad, alertas y evento `job.new`.
+- [x] Rutas de ofertas (`/jobs`) con `matchScore`, y de alertas (`/alerts`) con el perfil de emparejamiento.
+- [x] Compatibilidad real con pesos configurables, y evento `job.new`.
 - [x] Publicación de `application.status_changed` en Service Bus con el esquema de Notificaciones.
 - [ ] `SERVICEBUS_CONNECTION_STRING` en el App Service (referencia al Key Vault; falta que Justin le dé acceso a la identidad del App Service).
 - [ ] Certificado de cliente de APIM.

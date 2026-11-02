@@ -1,11 +1,14 @@
 package com.cvexpert.ofertas.application;
 
 import com.cvexpert.ofertas.domain.exception.AlreadyAppliedException;
+import com.cvexpert.ofertas.domain.model.AlertSettings;
 import com.cvexpert.ofertas.domain.model.ApplicationStatusChanged;
 import com.cvexpert.ofertas.domain.model.JobApplication;
 import com.cvexpert.ofertas.domain.model.JobOffer;
+import com.cvexpert.ofertas.domain.model.NewJobMatched;
 import com.cvexpert.ofertas.domain.model.PageQuery;
 import com.cvexpert.ofertas.domain.model.PageResult;
+import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
 import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
@@ -100,10 +103,36 @@ public final class InMemoryRepositories {
     /** Guarda los eventos en una lista para revisarlos en la prueba. */
     public static final class RecordingPublisher implements EventPublisher {
         public final List<ApplicationStatusChanged> published = new ArrayList<>();
+        public final List<NewJobMatched> newJobs = new ArrayList<>();
 
         @Override
         public void publish(ApplicationStatusChanged event) {
             published.add(event);
+        }
+
+        @Override
+        public void publish(NewJobMatched event) {
+            newJobs.add(event);
+        }
+    }
+
+    public static final class Alerts implements AlertSettingsRepository {
+        private final Map<String, AlertSettings> rows = new LinkedHashMap<>();
+
+        @Override
+        public Optional<AlertSettings> findByUser(String userId) {
+            return Optional.ofNullable(rows.get(userId));
+        }
+
+        @Override
+        public AlertSettings save(AlertSettings settings) {
+            rows.put(settings.userId(), settings);
+            return settings;
+        }
+
+        @Override
+        public List<AlertSettings> findEnabled() {
+            return rows.values().stream().filter(AlertSettings::enabled).toList();
         }
     }
 }
