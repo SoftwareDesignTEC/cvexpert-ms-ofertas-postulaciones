@@ -34,6 +34,8 @@ build/
 ### Secretos y configuración local: nunca se suben ###
 .env
 *.pem
+# Excepción: certificados de prueba, solo la parte pública (sin llave privada).
+!src/test/resources/certs/*.pem
 *.key
 *.pfx
 *.p12

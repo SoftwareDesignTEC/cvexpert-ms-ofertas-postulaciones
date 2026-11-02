@@ -58,7 +58,7 @@ APIM valida el token de Google y le pasa al servicio la identidad en encabezados
 | `X-User-Email` | Correo de la cuenta |
 | `X-User-Role` | Solo en las rutas de administración |
 
-El servicio no recibe ni valida tokens de Google, y rechaza las llamadas que no traen el certificado de cliente de APIM.
+El servicio no recibe ni valida tokens de Google, y rechaza las llamadas que no traen el certificado de cliente de APIM. App Service pide el certificado en el TLS y se lo pasa a la app en el encabezado `X-ARR-ClientCert`; `ApimCertificateFilter` compara su huella SHA-1 con `APIM_CERT_THUMBPRINT`, revisa que esté vigente y, si algo no calza, responde 403 con el código `INVALID_CLIENT_CERTIFICATE`. Solo `/actuator/health` queda fuera.
 
 ## Compatibilidad
 
@@ -146,7 +146,7 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
   GRANT USAGE, CREATE ON SCHEMA public TO ofertas;
   ```
 - El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
-- El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado: la app tiene que comprobar que sea el de APIM (pendiente, ver Estado).
+- El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado; que sea el de APIM lo comprueba la app (ver Identidad).
 - `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
 - Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
@@ -160,6 +160,7 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 | `DB_USER` | Usuario de la base, con permisos solo sobre `ofertas_postulaciones` |
 | `DB_PASSWORD` | Su contraseña |
 | `PORT` | Puerto HTTP (8080 si no se define) |
+| `APIM_CERT_THUMBPRINT` | Huella SHA-1 del certificado de cliente de APIM. Acepta varias separadas por coma, para cambiar de certificado sin cortar el servicio, y con o sin dos puntos. Si no está, no se valida el certificado (en local y en las pruebas) |
 | `SERVICEBUS_CONNECTION_STRING` | Cadena de solo envío a la cola `notificaciones-eventos` (`ServiceBus--SendConnectionString` en `kv-cvexpert`). Si no está, los eventos solo se escriben en el log, que es lo que pasa en local y en las pruebas |
 
 ## Estado
@@ -174,4 +175,5 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] Compatibilidad real con pesos configurables, y evento `job.new`.
 - [x] Publicación de `application.status_changed` en Service Bus con el esquema de Notificaciones.
 - [ ] `SERVICEBUS_CONNECTION_STRING` en el App Service (referencia al Key Vault; falta que Justin le dé acceso a la identidad del App Service).
-- [ ] Certificado de cliente de APIM.
+- [x] Validación del certificado de cliente de APIM (`ApimCertificateFilter`).
+- [ ] `APIM_CERT_THUMBPRINT` en el App Service (falta la huella del certificado de APIM).
