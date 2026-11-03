@@ -15,6 +15,10 @@ public class LoggingEventPublisher implements EventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingEventPublisher.class);
 
+    public LoggingEventPublisher() {
+        log.warn("SERVICEBUS_CONNECTION_STRING no está definida: los eventos solo se escriben en el log");
+    }
+
     @Override
     public void publish(ApplicationStatusChanged event) {
         log.info("Evento application.status_changed (stub, no se envía a Service Bus): {}", event);

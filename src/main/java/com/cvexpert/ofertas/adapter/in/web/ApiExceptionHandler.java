@@ -8,8 +8,10 @@ import com.cvexpert.ofertas.domain.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -36,9 +38,20 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", "La solicitud no es válida"));
     }
 
-    /** Cualquier otra cosa es un error nuestro: se registra completo y al cliente no se le dan detalles. */
+    /**
+     * Todo lo demás. Los errores que Spring ya sabe clasificar (ruta que no existe, método no
+     * permitido, tipo de contenido no soportado) conservan su código y no ensucian el log: App
+     * Service visita {@code /} cada 5 minutos con "Always On" y eso no es un error del servicio.
+     * Cualquier otra cosa sí es un error nuestro: se registra completo y al cliente no se le dan
+     * detalles.
+     */
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception e) {
+        if (e instanceof ErrorResponse known) {
+            HttpStatusCode status = known.getStatusCode();
+            String code = status.value() == 404 ? "NOT_FOUND" : "REQUEST_NOT_SUPPORTED";
+            return ResponseEntity.status(status).body(new ApiError(code, "La ruta o el método no existe"));
+        }
         log.error("Error no controlado", e);
         return ResponseEntity.internalServerError().body(new ApiError("INTERNAL_ERROR", "Ocurrió un error inesperado"));
     }

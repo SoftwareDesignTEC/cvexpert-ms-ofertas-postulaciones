@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -206,5 +207,14 @@ class ApplicationControllerTest {
         assertEquals(1, events.published.size());
         assertEquals("ana-admin", events.published.get(0).userId());
         assertEquals(ApplicationStatus.INTERVIEW, events.published.get(0).newStatus());
+    }
+
+    @Test
+    void unknownRoutesAndMethodsKeepTheirStatus() throws Exception {
+        // App Service visita / cada 5 minutos ("Always On"): tiene que ser 404, no 500.
+        mvc.perform(get("/")).andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND"));
+        mvc.perform(as(get("/no-existe"), "ana-x")).andExpect(status().isNotFound());
+        mvc.perform(as(patch("/applications"),
+                "ana-x")).andExpect(status().isMethodNotAllowed());
     }
 }
