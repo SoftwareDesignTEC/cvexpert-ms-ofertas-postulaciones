@@ -165,6 +165,18 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 - `SERVICEBUS_CONNECTION_STRING` es una referencia `@Microsoft.KeyVault(VaultName=kv-cvexpert;SecretName=ServiceBus--SendConnectionString)`: el valor no se copia, el App Service lo lee del Key Vault del grupo con su identidad administrada.
 - Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
+### Ofertas de demostración
+
+[`scripts/datos-demo-ofertas.sql`](scripts/datos-demo-ofertas.sql) carga 10 ofertas de empresas ficticias pensadas para el público de la app: prácticas, medio tiempo y puestos junior, en varios sectores y provincias. Se insertan directo en la base porque crear ofertas por el API exige rol de admin en APIM; por eso no disparan `job.new`.
+
+Desde Cloud Shell, en la carpeta donde esté el archivo, conectado como `ofertas` (la contraseña es la de `DB_PASSWORD`):
+
+```bash
+psql "host=psql-ofertas-andres.postgres.database.azure.com port=5432 dbname=ofertas_postulaciones user=ofertas sslmode=require" -f datos-demo-ofertas.sql
+```
+
+Debe responder `INSERT 0 10`. Correrlo otra vez no duplica nada (`INSERT 0 0`).
+
 ## Configuración
 
 Ningún valor real está en el repositorio. Todo llega por variables de entorno: en local desde `.env` (ignorado por git) y en Azure desde las variables de entorno del App Service. Cuando exista el Key Vault del grupo, esas variables pasan a ser referencias `@Microsoft.KeyVault(...)` sin cambiar el código.
