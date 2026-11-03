@@ -145,7 +145,7 @@ class ApplicationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.pageSize").value(5))
-                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.totalRecords").value(1))
                 .andExpect(jsonPath("$.items[0].userId").value("ana-list"));
         mvc.perform(as(get("/applications"), "ana-list").param("pageSize", "101"))
                 .andExpect(status().isBadRequest());

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: CVExpert - Ofertas y Postulaciones
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Borrador del contrato del microservicio de Ofertas y Postulaciones (Fase II).
 
@@ -649,15 +649,15 @@ components:
 
     Page:
       type: object
-      required: [page, pageSize, total]
+      required: [page, pageSize, totalRecords]
       properties:
         page:
           type: integer
         pageSize:
           type: integer
-        total:
+        totalRecords:
           type: integer
-          description: Cantidad total de elementos, no de páginas
+          description: Cantidad total de elementos, no de páginas. Se llama totalRecords, como en el enunciado.
 
     JobOfferPage:
       allOf:
