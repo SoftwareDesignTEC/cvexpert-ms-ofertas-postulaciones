@@ -33,6 +33,7 @@ public class ServiceBusEventPublisher implements EventPublisher, AutoCloseable {
     public ServiceBusEventPublisher(String connectionString, JsonMapper json) {
         this(new ServiceBusClientBuilder().connectionString(connectionString).sender().buildClient(), json,
                 UUID::randomUUID);
+        log.info("Los eventos se publican en Service Bus ({})", sender.getEntityPath());
     }
 
     ServiceBusEventPublisher(ServiceBusSenderClient sender, JsonMapper json, Supplier<UUID> eventIds) {

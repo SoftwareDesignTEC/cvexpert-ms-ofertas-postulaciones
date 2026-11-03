@@ -64,6 +64,9 @@ public class ApimCertificateFilter extends OncePerRequestFilter {
         this.clock = clock;
         if (allowedThumbprints.isEmpty()) {
             log.warn("APIM_CERT_THUMBPRINT no está definida: no se valida el certificado de APIM");
+        } else {
+            log.info("Solo se aceptan llamadas con el certificado de APIM ({} huella(s) configurada(s))",
+                    allowedThumbprints.size());
         }
     }
 

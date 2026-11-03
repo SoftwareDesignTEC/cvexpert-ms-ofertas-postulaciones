@@ -147,7 +147,8 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
   ```
 - El servidor acepta conexiones solo desde servicios de Azure y siempre con TLS (`sslmode=require`).
 - El App Service tiene solo HTTPS, "siempre activo" y el certificado de cliente en modo obligatorio, salvo en `/actuator/health` (la usa la prueba de humo del despliegue y solo responde `{"status":"UP"}`). App Service solo pide el certificado; que sea el de APIM lo comprueba la app (ver Identidad).
-- `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure. Si el grupo centraliza los secretos en un Key Vault, se cambian por referencias `@Microsoft.KeyVault(...)` sin tocar el código.
+- `DB_URL`, `DB_USER` y `DB_PASSWORD` están en las variables de entorno del App Service, cifradas por Azure.
+- `SERVICEBUS_CONNECTION_STRING` es una referencia `@Microsoft.KeyVault(VaultName=kv-cvexpert;SecretName=ServiceBus--SendConnectionString)`: el valor no se copia, el App Service lo lee del Key Vault del grupo con su identidad administrada.
 - Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
 ## Configuración
@@ -174,6 +175,7 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 - [x] Rutas de ofertas (`/jobs`) con `matchScore`, y de alertas (`/alerts`) con el perfil de emparejamiento.
 - [x] Compatibilidad real con pesos configurables, y evento `job.new`.
 - [x] Publicación de `application.status_changed` en Service Bus con el esquema de Notificaciones.
-- [ ] `SERVICEBUS_CONNECTION_STRING` en el App Service (referencia al Key Vault; falta que Justin le dé acceso a la identidad del App Service).
+- [x] `SERVICEBUS_CONNECTION_STRING` en el App Service, como referencia a `kv-cvexpert` que lee la identidad del App Service (rol Key Vault Secrets User).
 - [x] Validación del certificado de cliente de APIM (`ApimCertificateFilter`).
-- [ ] `APIM_CERT_THUMBPRINT` en el App Service (falta la huella del certificado de APIM).
+- [x] `APIM_CERT_THUMBPRINT` en el App Service, con la huella del certificado que APIM usa también con Usuarios.
+- [ ] `X-User-Role` desde APIM: hasta que existan las rutas de administración en APIM, crear, editar y borrar ofertas y el cambio de estado de administración responden 403.
