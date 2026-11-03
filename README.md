@@ -107,6 +107,20 @@ Get-Content .env | Where-Object { $_ -match '^\w' } | ForEach-Object { $k, $v = 
 
 El servicio queda en http://localhost:8080 y `GET /actuator/health` responde `{"status":"UP"}`.
 
+## Contrato, Swagger y Postman
+
+- **Contrato:** `docs/openapi.yaml`. Es la única copia: el build la publica tal cual en `/openapi.yaml`.
+- **Swagger UI:** `/swagger-ui.html` muestra ese mismo contrato, no uno generado del código, porque el contrato es lo que se acordó con la web y la app. En Azure, como todo menos `/actuator/health`, solo se llega a través de APIM.
+- **Postman:** `postman/ofertas-postulaciones.postman_collection.json` tiene una prueba por ruta, en orden: crea una oferta, guarda alertas, se postula, mueve la tarjeta, el admin cambia el estado, retira la postulación y borra la oferta. También prueba los errores del contrato (403, 404, 409 y 400). Crea y limpia sus propios datos.
+
+Para correr la colección en local, con el servicio levantado:
+
+```bash
+npx newman run postman/ofertas-postulaciones.postman_collection.json
+```
+
+En local los encabezados `X-User-*` los pone la colección. Para usarla a través de APIM, cambiar `baseUrl` por la URL de APIM con `/api/v1`; APIM reemplaza esos encabezados con la identidad del token de Google.
+
 ## Pruebas
 
 ```bash
@@ -167,7 +181,9 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 ## Estado
 
 - [x] Proyecto base, estructura hexagonal y pruebas.
-- [x] Borrador del contrato OpenAPI (`docs/openapi.yaml`). Falta confirmar con la exportación de APIM las 5 operaciones marcadas `por-confirmar-apim`.
+- [x] Contrato OpenAPI (`docs/openapi.yaml`), con el estado de cada operación respecto a los mocks de APIM.
+- [x] Swagger UI y colección de Postman con una prueba por ruta.
+- [ ] Revisar las 3 operaciones `mock-apim` con la exportación de APIM.
 - [x] CI con pruebas en cada PR.
 - [x] Despliegue al App Service desde `main`.
 - [x] Dominio, persistencia y casos de uso: modelos, los 11 casos de uso, migración V1 y adaptador JPA, con pruebas.

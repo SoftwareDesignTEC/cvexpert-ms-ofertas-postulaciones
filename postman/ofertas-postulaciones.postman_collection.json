@@ -1,0 +1,1053 @@
+{
+  "info": {
+    "name": "CVExpert - Ofertas y Postulaciones",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Una prueba por ruta del servicio de Ofertas y Postulaciones (docs/openapi.yaml). Las solicitudes van en orden: crean sus propios datos y los limpian al final.\n\nEn local, baseUrl es http://localhost:8080 y los encabezados X-User-* los pone la colección. A través de APIM, baseUrl es la URL de APIM con /api/v1, y APIM reemplaza esos encabezados con la identidad del token de Google."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "userId",
+      "value": "postman-usuario"
+    },
+    {
+      "key": "userEmail",
+      "value": "postman@example.com"
+    },
+    {
+      "key": "jobId",
+      "value": ""
+    },
+    {
+      "key": "applicationId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Salud",
+      "item": [
+        {
+          "name": "Salud del servicio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 y UP\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"UP\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ofertas",
+      "item": [
+        {
+          "name": "Crear oferta (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 con id como texto y fecha en epoch\", () => {",
+                  "    pm.response.to.have.status(201);",
+                  "    const o = pm.response.json();",
+                  "    pm.expect(o.id).to.be.a(\"string\");",
+                  "    pm.expect(o.postedAt).to.be.a(\"number\");",
+                  "    pm.expect(o.modality).to.eql(\"hybrid\");",
+                  "    pm.collectionVariables.set(\"jobId\", o.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "X-User-Role",
+                "value": "admin"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Desarrollador Android Junior\",\n  \"company\": \"Acme CR\",\n  \"location\": \"San José\",\n  \"modality\": \"hybrid\",\n  \"type\": \"full-time\",\n  \"sector\": \"Tecnología\",\n  \"description\": \"Desarrollo de apps móviles con Kotlin.\",\n  \"requirements\": [\n    \"Bachillerato\"\n  ],\n  \"skills\": [\n    \"Kotlin\",\n    \"Git\"\n  ],\n  \"minExperienceYears\": 1,\n  \"salary\": {\n    \"min\": 600000,\n    \"max\": 900000,\n    \"currency\": \"CRC\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Crear oferta sin rol de admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN\", () => {",
+                  "    pm.response.to.have.status(403);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Desarrollador Android Junior\",\n  \"company\": \"Acme CR\",\n  \"location\": \"San José\",\n  \"modality\": \"hybrid\",\n  \"type\": \"full-time\",\n  \"sector\": \"Tecnología\",\n  \"description\": \"Desarrollo de apps móviles con Kotlin.\",\n  \"requirements\": [\n    \"Bachillerato\"\n  ],\n  \"skills\": [\n    \"Kotlin\",\n    \"Git\"\n  ],\n  \"minExperienceYears\": 1,\n  \"salary\": {\n    \"min\": 600000,\n    \"max\": 900000,\n    \"currency\": \"CRC\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar ofertas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con la forma de página del contrato\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const p = pm.response.json();",
+                  "    pm.expect(p).to.have.keys(\"items\", \"page\", \"pageSize\", \"total\");",
+                  "    pm.expect(p.page).to.eql(1);",
+                  "    pm.expect(p.items.map(o => o.id)).to.include(pm.collectionVariables.get(\"jobId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs?page=1&pageSize=10&search=android",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "android"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver oferta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con la oferta creada\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"jobId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar oferta (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con el título nuevo\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().title).to.eql(\"Desarrollador Android\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "X-User-Role",
+                "value": "admin"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Desarrollador Android\",\n  \"company\": \"Acme CR\",\n  \"location\": \"San José\",\n  \"modality\": \"hybrid\",\n  \"type\": \"full-time\",\n  \"sector\": \"Tecnología\",\n  \"description\": \"Desarrollo de apps móviles con Kotlin.\",\n  \"requirements\": [\n    \"Bachillerato\"\n  ],\n  \"skills\": [\n    \"Kotlin\",\n    \"Git\"\n  ],\n  \"minExperienceYears\": 1,\n  \"salary\": {\n    \"min\": 600000,\n    \"max\": 900000,\n    \"currency\": \"CRC\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver oferta que no existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404 JOB_NOT_FOUND\", () => {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"JOB_NOT_FOUND\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "999999999"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alertas",
+      "item": [
+        {
+          "name": "Guardar alertas y perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con lo guardado y updatedAt en epoch\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const a = pm.response.json();",
+                  "    pm.expect(a.minMatch).to.eql(70);",
+                  "    pm.expect(a.profile.jobTypes).to.eql([\"full-time\"]);",
+                  "    pm.expect(a.updatedAt).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"minMatch\": 70,\n  \"profile\": {\n    \"skills\": [\n      \"kotlin\",\n      \"git\"\n    ],\n    \"location\": \"San José\",\n    \"modalities\": [\n      \"hybrid\",\n      \"remote\"\n    ],\n    \"jobTypes\": [\n      \"full-time\"\n    ],\n    \"sectors\": [\n      \"Tecnología\"\n    ],\n    \"experienceYears\": 2\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Ver alertas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 con el perfil guardado\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().profile.location).to.eql(\"San José\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver oferta con compatibilidad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"matchScore entre 0 y 100 porque hay perfil guardado\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    const score = pm.response.json().matchScore;",
+                  "    pm.expect(score).to.be.a(\"number\");",
+                  "    pm.expect(score).to.be.within(0, 100);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Guardar alertas inválidas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"400 VALIDATION_ERROR\", () => {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "alerts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"minMatch\": 150,\n  \"profile\": {\n    \"skills\": [\n      \"kotlin\",\n      \"git\"\n    ],\n    \"location\": \"San José\",\n    \"modalities\": [\n      \"hybrid\",\n      \"remote\"\n    ],\n    \"jobTypes\": [\n      \"full-time\"\n    ],\n    \"sectors\": [\n      \"Tecnología\"\n    ],\n    \"experienceYears\": 2\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Postulaciones",
+      "item": [
+        {
+          "name": "Postularse",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 en applied con la copia de la oferta\", () => {",
+                  "    pm.response.to.have.status(201);",
+                  "    const a = pm.response.json();",
+                  "    pm.expect(a.status).to.eql(\"applied\");",
+                  "    pm.expect(a.jobOfferId).to.eql(pm.collectionVariables.get(\"jobId\"));",
+                  "    pm.expect(a.jobTitle).to.eql(\"Desarrollador Android\");",
+                  "    pm.collectionVariables.set(\"applicationId\", a.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobOfferId\": \"{{jobId}}\",\n  \"notes\": \"Me interesa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Postularse otra vez a la misma oferta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"409 APPLICATION_ALREADY_EXISTS\", () => {",
+                  "    pm.response.to.have.status(409);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"APPLICATION_ALREADY_EXISTS\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jobOfferId\": \"{{jobId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Listar mis postulaciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 e incluye la postulación\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().items.map(a => a.id)).to.include(pm.collectionVariables.get(\"applicationId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications?page=1&pageSize=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver mi postulación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"applicationId\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ver la postulación de otra persona",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404, como si no existiera\", () => {",
+                  "    pm.response.to.have.status(404);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"APPLICATION_NOT_FOUND\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "postman-otra-persona"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mover mi tarjeta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 en in-progress\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"in-progress\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{applicationId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in-progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cambiar estado (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 en interview (publica application.status_changed)\", () => {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql(\"interview\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "X-User-Role",
+                "value": "admin"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/applications/{{applicationId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "applications",
+                "{{applicationId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"interview\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Retirar mi postulación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/applications/{{applicationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "applications",
+                "{{applicationId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Limpieza",
+      "item": [
+        {
+          "name": "Borrar oferta (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              },
+              {
+                "key": "X-User-Role",
+                "value": "admin"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "La oferta borrada ya no existe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "{{userId}}"
+              },
+              {
+                "key": "X-User-Email",
+                "value": "{{userEmail}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/jobs/{{jobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "jobs",
+                "{{jobId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
