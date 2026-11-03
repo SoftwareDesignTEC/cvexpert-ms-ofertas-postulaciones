@@ -198,7 +198,7 @@
                   "pm.test(\"200 con la forma de página del contrato\", () => {",
                   "    pm.response.to.have.status(200);",
                   "    const p = pm.response.json();",
-                  "    pm.expect(p).to.have.keys(\"items\", \"page\", \"pageSize\", \"total\");",
+                  "    pm.expect(p).to.have.keys(\"items\", \"page\", \"pageSize\", \"totalRecords\");",
                   "    pm.expect(p.page).to.eql(1);",
                   "    pm.expect(p.items.map(o => o.id)).to.include(pm.collectionVariables.get(\"jobId\"));",
                   "});"
