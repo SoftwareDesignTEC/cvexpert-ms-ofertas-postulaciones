@@ -12,6 +12,8 @@ import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
 import java.time.Clock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +27,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Configuration
 public class UseCaseConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(UseCaseConfig.class);
+
     /** Reloj en UTC. Las pruebas usan uno fijo para controlar las fechas. */
     @Bean
     Clock clock() {
@@ -35,6 +39,9 @@ public class UseCaseConfig {
      * Service Bus si hay cadena de conexión ({@code SERVICEBUS_CONNECTION_STRING}); si no, el stub
      * que escribe en el log. Así las pruebas y el desarrollo local no necesitan Azure. Spring
      * cierra la conexión con Service Bus al apagar la app.
+     *
+     * <p>Si la cadena no sirve, la app arranca igual con el stub y deja un error en el log: un
+     * problema con Notificaciones no puede dejar sin ofertas ni postulaciones al resto.
      */
     @Bean
     EventPublisher eventPublisher(@Value("${servicebus.connection-string:}") String connectionString,
@@ -42,7 +49,14 @@ public class UseCaseConfig {
         if (connectionString.isBlank()) {
             return new LoggingEventPublisher();
         }
-        return new ServiceBusEventPublisher(connectionString, json);
+        try {
+            return new ServiceBusEventPublisher(connectionString, json);
+        } catch (RuntimeException e) {
+            // No se registra la excepción completa: su mensaje puede traer parte de la cadena.
+            log.error("SERVICEBUS_CONNECTION_STRING no es una cadena de conexión válida ({}); los eventos "
+                    + "solo se escriben en el log", e.getClass().getSimpleName());
+            return new LoggingEventPublisher();
+        }
     }
 
     /** Pesos de la compatibilidad, configurables en {@code application.yml} (matching.weights). */
