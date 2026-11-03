@@ -30,6 +30,8 @@
 		<java.version>17</java.version>
 		<!-- Cliente oficial de Azure Service Bus. Spring Boot no maneja su versión. -->
 		<azure-servicebus.version>7.18.1</azure-servicebus.version>
+		<!-- Swagger UI. La 3.x es la línea de springdoc para Spring Boot 4. -->
+		<springdoc.version>3.1.1</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -61,6 +63,12 @@
 			<groupId>com.azure</groupId>
 			<artifactId>azure-messaging-servicebus</artifactId>
 			<version>${azure-servicebus.version}</version>
+		</dependency>
+		<!-- Swagger UI que muestra el contrato docs/openapi.yaml. -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>${springdoc.version}</version>
 		</dependency>
 
 		<dependency>
@@ -111,6 +119,19 @@
 	</dependencies>
 
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+			</resource>
+			<!-- El contrato se publica tal cual en /openapi.yaml: una sola copia, la de docs/. -->
+			<resource>
+				<directory>docs</directory>
+				<includes>
+					<include>openapi.yaml</include>
+				</includes>
+				<targetPath>static</targetPath>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>

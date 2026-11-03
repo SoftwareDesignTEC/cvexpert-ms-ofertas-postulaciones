@@ -37,6 +37,14 @@ matching:
 apim:
   cert-thumbprint: ${APIM_CERT_THUMBPRINT:}
 
+# Swagger UI muestra el contrato escrito a mano (docs/openapi.yaml, publicado en /openapi.yaml), no
+# uno generado del código: el contrato es lo que se acordó con la web y la app. springdoc igual
+# genera /v3/api-docs (sin eso no registra Swagger UI), pero la interfaz no lo usa.
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /openapi.yaml
+
 management:
   endpoints:
     web:

@@ -1,16 +1,20 @@
 openapi: 3.1.0
 info:
   title: CVExpert - Ofertas y Postulaciones
-  version: 0.1.0-borrador
+  version: 0.2.0
   description: |
     Borrador del contrato del microservicio de Ofertas y Postulaciones (Fase II).
 
     **Rutas de la Fase I.** Las URLs que usan hoy la web y la app no cambian: APIM solo
     cambia el backend de cada operación. Las operaciones marcadas con
     `x-estado: confirmado-fase-1` salen del código de los dos clientes. Las marcadas con
-    `x-estado: por-confirmar-apim` existen en los mocks de APIM pero ningún cliente las usa;
-    su forma se confirma con la exportación de APIM. Las marcadas con `x-estado: nuevo` son
-    de la Fase II.
+    `x-estado: mock-apim` tienen mock en APIM pero ningún cliente las usa; su forma se revisa
+    con la exportación de APIM. Las marcadas con `x-estado: sin-mock-apim` no tenían mock (en
+    la Fase I fallaban) y existen desde el servicio real. Las marcadas con `x-estado: nuevo`
+    son de la Fase II.
+
+    **Implementación.** Todas las operaciones están implementadas y desplegadas. Swagger UI
+    del servicio muestra este mismo archivo.
 
     **Identidad.** APIM valida el token de Google y pasa la identidad en encabezados. El
     servicio no recibe tokens: `X-User-Id` (el `sub` de Google) y `X-User-Email` llegan en
@@ -69,7 +73,7 @@ paths:
         emparejamiento guardado y se publica un evento `job.new` por cada usuario que alcanza
         su `minMatch` con las alertas activas.
       operationId: createJob
-      x-estado: por-confirmar-apim
+      x-estado: mock-apim
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/UserEmail'
@@ -116,7 +120,7 @@ paths:
       tags: [Ofertas, Administración]
       summary: Editar una oferta
       operationId: updateJob
-      x-estado: por-confirmar-apim
+      x-estado: mock-apim
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/UserEmail'
@@ -145,7 +149,7 @@ paths:
       summary: Borrar una oferta
       description: Las postulaciones a esa oferta se conservan, con su copia del título y la empresa.
       operationId: deleteJob
-      x-estado: por-confirmar-apim
+      x-estado: mock-apim
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/UserEmail'
@@ -225,7 +229,7 @@ paths:
       tags: [Postulaciones]
       summary: Detalle de una postulación propia
       operationId: getApplication
-      x-estado: por-confirmar-apim
+      x-estado: sin-mock-apim
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/UserEmail'
@@ -270,7 +274,7 @@ paths:
       tags: [Postulaciones]
       summary: Retirar una postulación propia
       operationId: deleteApplication
-      x-estado: por-confirmar-apim
+      x-estado: sin-mock-apim
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/UserEmail'
@@ -333,7 +337,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AlertSettings'
         '404':
-          description: El usuario todavía no guardó su configuración
+          description: El usuario todavía no guardó su configuración (`ALERTS_NOT_FOUND`)
           content:
             application/json:
               schema:
@@ -372,7 +376,8 @@ components:
       type: mutualTLS
       description: |
         Solo APIM llega al servicio: toda llamada sin el certificado de cliente de APIM se
-        rechaza. Los clientes no usan este esquema; se autentican ante APIM con su token de
+        rechaza con 403 y el código `INVALID_CLIENT_CERTIFICATE` (se compara la huella SHA-1
+        y la vigencia). La única ruta sin certificado es `/actuator/health`. Los clientes no usan este esquema; se autentican ante APIM con su token de
         Google, y APIM pasa la identidad en X-User-Id y X-User-Email.
 
   parameters:
@@ -437,13 +442,15 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Forbidden:
-      description: Falta el rol de administrador
+      description: Falta el rol de administrador (`FORBIDDEN`)
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     NotFound:
-      description: No existe, o no pertenece al usuario de `X-User-Id`
+      description: |
+        No existe, o no pertenece al usuario de `X-User-Id` (`JOB_NOT_FOUND`,
+        `APPLICATION_NOT_FOUND`). Un id que no es número también responde 404.
       content:
         application/json:
           schema:
