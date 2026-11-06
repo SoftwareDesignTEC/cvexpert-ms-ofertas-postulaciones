@@ -12,6 +12,9 @@
 -- Se puede correr varias veces: una oferta con el mismo título y empresa no se vuelve a crear.
 -- Se insertan directo en la base, sin pasar por el API, así que no disparan el evento job.new.
 -- Las fechas de publicación quedan escalonadas en los últimos días, relativas a cuando se corre.
+--
+-- Las ofertas remotas usan "Todo el país" como ubicación y no "Remoto": la tarjeta de la app
+-- muestra ubicación y modalidad juntas, y con "Remoto" se leía "Remoto · Remoto".
 
 INSERT INTO job_offers (title, company, location, modality, job_type, sector, description,
                         requirements, skills, min_experience_years,
@@ -41,7 +44,7 @@ FROM (VALUES
      'Atención de clientes en inglés por chat y teléfono. Capacitación pagada de tres semanas.',
      ARRAY['Inglés avanzado (B2 o más)'], ARRAY['Inglés', 'Comunicación', 'Servicio al cliente'], 0,
      550000, 650000, 'CRC', 1),
-    ('Diseñador gráfico freelance', 'Taller Creativo Tico', 'Remoto', 'remote', 'freelance', 'Diseño',
+    ('Diseñador gráfico freelance', 'Taller Creativo Tico', 'Todo el país', 'remote', 'freelance', 'Diseño',
      'Piezas para redes sociales y presentaciones de clientes pequeños, por proyecto.',
      ARRAY['Portafolio con al menos 5 trabajos'], ARRAY['Figma', 'Illustrator', 'Diseño gráfico'], 1,
      NULL, NULL, NULL, 6),
@@ -53,7 +56,7 @@ FROM (VALUES
      'Registro de facturas, conciliaciones bancarias y apoyo en cierres mensuales.',
      ARRAY['Técnico o estudiante de contabilidad'], ARRAY['Excel', 'Contabilidad'], 1,
      500000, 600000, 'CRC', 8),
-    ('Desarrollador backend Java Jr.', 'Raíz Digital', 'Remoto', 'remote', 'full-time', 'Tecnología',
+    ('Desarrollador backend Java Jr.', 'Raíz Digital', 'Todo el país', 'remote', 'full-time', 'Tecnología',
      'Mantenimiento de APIs con Spring Boot y PostgreSQL. Revisión de código diaria con el equipo.',
      ARRAY['Bachiller universitario o carrera técnica en computación'], ARRAY['Java', 'Spring Boot', 'SQL', 'Git'], 1,
      800000, 1100000, 'CRC', 2),
@@ -67,3 +70,12 @@ WHERE NOT EXISTS (
     SELECT 1 FROM job_offers o
     WHERE o.title = d.title AND o.company = d.company AND o.deleted_at IS NULL
 );
+
+-- Corrige las ofertas que una versión anterior de este script cargó con "Remoto" como ubicación.
+-- Si ya están bien, no cambia nada.
+UPDATE job_offers
+SET location = 'Todo el país'
+WHERE location = 'Remoto'
+  AND modality = 'remote'
+  AND company IN ('Taller Creativo Tico', 'Raíz Digital')
+  AND deleted_at IS NULL;
