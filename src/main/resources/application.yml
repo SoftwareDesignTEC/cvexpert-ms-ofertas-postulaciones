@@ -56,8 +56,9 @@ management:
 # llega al App Service como variable de entorno; nunca se escribe aquí.
 importer:
   run-on-startup: ${JOBS_IMPORT_ON_STARTUP:true}
-  # Todos los días a las 6 a. m., hora de Costa Rica.
-  cron: ${JOBS_IMPORT_CRON:0 0 6 * * *}
+  # Cada dos días a las 6 a. m., hora de Costa Rica. Las ofertas son del último mes, así que no
+  # hace falta más seguido, y así 6 búsquedas gastan unas 90 consultas al mes de las 200 gratis.
+  cron: ${JOBS_IMPORT_CRON:0 0 6 */2 * *}
   jsearch:
     api-key: ${JSEARCH_API_KEY:}
     # Con RapidAPI. Para OpenWeb Ninja directo: base-url https://api.openwebninja.com/jsearch,
@@ -79,3 +80,5 @@ importer:
       sector: Prácticas profesionales
     - text: asistente administrativo en Costa Rica
       sector: Administración
+    - text: trabajo remoto desde Costa Rica
+      sector: Tecnología
