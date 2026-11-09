@@ -65,6 +65,18 @@ public class JSearchJobSource implements ExternalJobSource {
     /** "hace 7 días", "hace 3 horas": la v5 a veces solo trae la fecha así. */
     private static final Pattern AGO = Pattern.compile("(?i)hace\\s+(\\d+)\\s+(minuto|hora|d[ií]a|semana|mes)");
 
+    /** En el título basta con que diga remoto o teletrabajo: "Analista - Trabajo Remoto". */
+    private static final Pattern TITLE_REMOTE = Pattern.compile("remot|teletrabajo|desde casa|work from home");
+
+    /**
+     * En la descripción solo cuentan frases sobre la modalidad. "Remoto" a secas no alcanza:
+     * en soporte técnico se habla de "soporte remoto" o "acceso remoto" en puestos presenciales.
+     */
+    private static final Pattern DESCRIPTION_REMOTE = Pattern.compile(
+            "(trabajo|modalidad|empleo|puesto|posici[oó]n|esquema)\\s+(100%\\s*)?remot[oa]"
+                    + "|100%\\s*remot|totalmente\\s+remot|teletrabajo|desde\\s+casa|work\\s+from\\s+home"
+                    + "|fully\\s+remote|remote\\s+(work|position|job)");
+
     private static final long MINUTE = 60_000L;
     private static final long HOUR = 60 * MINUTE;
     private static final long DAY = 24 * HOUR;
@@ -242,7 +254,7 @@ public class JSearchJobSource implements ExternalJobSource {
         if (mentionsHybrid(lowerTitle)) {
             return Modality.HYBRID;
         }
-        if (mentionsRemote(lowerTitle) || node.path("job_is_remote").asBoolean(false)) {
+        if (mentionsRemote(lowerTitle, TITLE_REMOTE) || node.path("job_is_remote").asBoolean(false)) {
             return Modality.REMOTE;
         }
         if (mentionsHybrid(lower)) {
@@ -250,7 +262,7 @@ public class JSearchJobSource implements ExternalJobSource {
         }
         // La v5 casi siempre manda job_is_remote en false, aunque la oferta sea remota: se busca
         // en la descripción también.
-        if (mentionsRemote(lower)) {
+        if (mentionsRemote(lower, DESCRIPTION_REMOTE)) {
             return Modality.REMOTE;
         }
         return Modality.ON_SITE;
@@ -260,9 +272,8 @@ public class JSearchJobSource implements ExternalJobSource {
         return text.contains("híbrid") || text.contains("hibrid") || text.contains("hybrid");
     }
 
-    private static boolean mentionsRemote(String text) {
-        return text.contains("remoto") || text.contains("remota") || text.contains("remote")
-                || text.contains("teletrabajo") || text.contains("desde casa") || text.contains("work from home");
+    private static boolean mentionsRemote(String text, Pattern pattern) {
+        return pattern.matcher(text).find();
     }
 
     /**

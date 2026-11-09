@@ -194,12 +194,15 @@ class JSearchJobSourceTest {
                    "job_description": "Modalidad 100% teletrabajo."},
                   {"job_title": "Soporte", "employer_name": "C", "job_is_remote": false,
                    "job_description": "Esquema híbrido: 3 días en oficina, 2 remoto."},
-                  {"job_title": "Cajero", "employer_name": "D", "job_description": "En tienda."}
+                  {"job_title": "Cajero", "employer_name": "D", "job_description": "En tienda."},
+                  {"job_title": "Técnico de Soporte Nivel I", "employer_name": "E",
+                   "job_description": "Brindar soporte remoto y presencial a usuarios en planta."}
                 ]}}
                 """;
         var jobs = JSearchJobSource.toImportedJobs(JsonMapper.builder().build().readTree(json), QUERY, NOW);
 
+        // El último dice "soporte remoto", pero el puesto es presencial.
         assertThat(jobs).extracting(j -> j.details().modality())
-                .containsExactly(Modality.REMOTE, Modality.REMOTE, Modality.HYBRID, Modality.ON_SITE);
+                .containsExactly(Modality.REMOTE, Modality.REMOTE, Modality.HYBRID, Modality.ON_SITE, Modality.ON_SITE);
     }
 }
