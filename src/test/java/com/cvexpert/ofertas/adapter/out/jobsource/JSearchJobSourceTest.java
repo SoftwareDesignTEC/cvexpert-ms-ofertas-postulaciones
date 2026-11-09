@@ -105,4 +105,61 @@ class JSearchJobSourceTest {
     void descartaLasIncompletasYLasQueNoCumplenLasReglas() {
         assertThat(parse()).extracting(ImportedJob::externalId).containsExactly("abc123", "rem-1");
     }
+
+    /** Formato de la v5 ({@code /search-v2}): las ofertas vienen en data.jobs. Copia de una respuesta real. */
+    private static final String RESPONSE_V5 = """
+            {
+              "status": "OK",
+              "parameters": { "query": "desarrollador junior en Costa Rica", "country": "cr", "language": "es" },
+              "data": {
+                "cursor": "abc",
+                "jobs": [
+                  {
+                    "job_id": "v5-1",
+                    "job_title": "Desarrollador Junior .NET",
+                    "employer_name": "Centauro Solutions",
+                    "employer_logo": "https://logo.example.com/centauro.png",
+                    "job_employment_type": "Tiempo completo",
+                    "job_employment_types": ["FULLTIME"],
+                    "job_apply_link": "https://www.linkedin.com/jobs/view/1",
+                    "job_description": "Desarrollo con C# y SQL Server.",
+                    "job_is_remote": false,
+                    "job_posted_at": "hace 7 días",
+                    "job_posted_at_timestamp": null,
+                    "job_location": "San José  ·  a través de LinkedIn",
+                    "job_city": "San José",
+                    "job_state": "California",
+                    "job_country": "US"
+                  },
+                  {
+                    "job_id": "v5-2",
+                    "job_title": "Practicante de soporte",
+                    "employer_name": "Empresa CR",
+                    "job_employment_types": ["INTERN"],
+                    "job_description": "Soporte técnico a usuarios.",
+                    "job_location": null,
+                    "job_posted_at_datetime_utc": "2026-11-01T12:00:00.000Z"
+                  }
+                ]
+              }
+            }
+            """;
+
+    @Test
+    void entiendeElFormatoDeLaVersion5() {
+        var jobs = JSearchJobSource.toImportedJobs(JsonMapper.builder().build().readTree(RESPONSE_V5), QUERY, NOW);
+
+        assertThat(jobs).extracting(ImportedJob::externalId).containsExactly("v5-1", "v5-2");
+        var first = jobs.get(0);
+        // job_city dice California: se usa job_location sin "a través de LinkedIn".
+        assertThat(first.details().location()).isEqualTo("San José");
+        assertThat(first.details().type()).isEqualTo(JobType.FULL_TIME);
+        assertThat(first.details().skills()).contains(".NET", "SQL");
+        assertThat(first.postedAt()).isEqualTo(NOW - 7L * 24 * 60 * 60 * 1000);
+
+        var second = jobs.get(1);
+        assertThat(second.details().location()).isEqualTo("Costa Rica");
+        assertThat(second.details().type()).isEqualTo(JobType.INTERNSHIP);
+        assertThat(second.postedAt()).isEqualTo(java.time.Instant.parse("2026-11-01T12:00:00Z").toEpochMilli());
+    }
 }

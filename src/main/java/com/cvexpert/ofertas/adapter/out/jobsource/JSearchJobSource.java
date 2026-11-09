@@ -9,9 +9,13 @@ import com.cvexpert.ofertas.domain.model.Salary;
 import com.cvexpert.ofertas.domain.model.SkillExtractor;
 import com.cvexpert.ofertas.domain.port.out.ExternalJobSource;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.RestClient;
@@ -22,8 +26,10 @@ import tools.jackson.databind.json.JsonMapper;
  * Ofertas reales de JSearch, una API que junta las ofertas publicadas en LinkedIn, Indeed,
  * Glassdoor y otros sitios a través de Google for Jobs.
  *
- * <p>Se usa {@code GET /search} con la búsqueda en texto ("desarrollador junior en Costa Rica"), el
- * país y el rango de fechas. La clave viaja en un encabezado; con RapidAPI son
+ * <p>Se usa {@code GET /search-v2} (la versión 5 de la API) con la búsqueda en texto
+ * ("desarrollador junior en Costa Rica"), el país, el idioma y el rango de fechas. La v5 devuelve
+ * las ofertas en {@code data.jobs}; las versiones anteriores, directo en {@code data}. Se aceptan
+ * las dos formas. La clave viaja en un encabezado; con RapidAPI son
  * {@code X-RapidAPI-Key} y {@code X-RapidAPI-Host}, y con OpenWeb Ninja directo, {@code x-api-key}.
  * Por eso los nombres y la URL son configurables (ver {@code application.yml}, sección importer).
  *
@@ -39,6 +45,19 @@ public class JSearchJobSource implements ExternalJobSource {
     /** La descripción completa puede ser muy larga; la tarjeta y el detalle no necesitan más. */
     private static final int MAX_DESCRIPTION = 4000;
     private static final int MAX_REQUIREMENTS = 6;
+
+    /** "San José · a través de LinkedIn": lo que va antes de "a través de" es la ubicación. */
+    private static final Pattern VIA = Pattern.compile("(?i)\\s*(a trav[eé]s de|via)\\s.*$");
+
+    /** Lo que sobra al recortar: espacios, viñetas y separadores. */
+    private static final Pattern EDGES = Pattern.compile("^[\\s\\p{Punct}·•]+|[\\s\\p{Punct}·•]+$");
+
+    /** "hace 7 días", "hace 3 horas": la v5 a veces solo trae la fecha así. */
+    private static final Pattern AGO = Pattern.compile("(?i)hace\\s+(\\d+)\\s+(minuto|hora|d[ií]a|semana|mes)");
+
+    private static final long MINUTE = 60_000L;
+    private static final long HOUR = 60 * MINUTE;
+    private static final long DAY = 24 * HOUR;
 
     private final RestClient http;
     private final JsonMapper json;
@@ -62,12 +81,13 @@ public class JSearchJobSource implements ExternalJobSource {
 
     @Override
     public List<ImportedJob> search(JobSearchQuery query) {
+        // num_pages=1: cada página (hasta 10 ofertas) gasta una consulta del plan.
         String body = http.get()
-                .uri(uri -> uri.path("/search")
+                .uri(uri -> uri.path("/search-v2")
                         .queryParam("query", query.text())
-                        .queryParam("page", 1)
                         .queryParam("num_pages", 1)
                         .queryParam("country", country)
+                        .queryParam("language", "es")
                         .queryParam("date_posted", datePosted)
                         .build())
                 .retrieve()
@@ -78,7 +98,9 @@ public class JSearchJobSource implements ExternalJobSource {
     /** Convierte la respuesta de {@code /search}. Descarta las ofertas que no se pueden usar. */
     static List<ImportedJob> toImportedJobs(JsonNode root, JobSearchQuery query, long now) {
         List<ImportedJob> jobs = new ArrayList<>();
-        for (JsonNode node : root.path("data")) {
+        JsonNode data = root.path("data");
+        JsonNode list = data.isArray() ? data : data.path("jobs");
+        for (JsonNode node : list) {
             try {
                 ImportedJob job = toImportedJob(node, query, now);
                 if (job != null) {
@@ -122,21 +144,64 @@ public class JSearchJobSource implements ExternalJobSource {
                 salary(node),
                 applyUrl(node));
 
-        long postedAt = node.path("job_posted_at_timestamp").isNumber()
-                ? node.path("job_posted_at_timestamp").asLong() * 1000
-                : now;
-        return new ImportedJob(SOURCE, id, details, postedAt);
+        return new ImportedJob(SOURCE, id, details, postedAt(node, now));
     }
 
-    /** Ciudad, si no la provincia, y si no "Costa Rica". Las remotas sin ciudad: "Todo el país". */
-    private static String location(JsonNode node) {
-        String city = text(node, "job_city");
-        if (city != null) {
-            return city;
+    /**
+     * Fecha de publicación: el timestamp si viene; si no, la fecha ISO; si no, el texto
+     * "hace 7 días"; y si no hay nada, ahora.
+     */
+    private static long postedAt(JsonNode node, long now) {
+        JsonNode timestamp = node.path("job_posted_at_timestamp");
+        if (timestamp.isNumber()) {
+            return timestamp.asLong() * 1000;
         }
-        String state = text(node, "job_state");
-        if (state != null) {
-            return state;
+        String iso = text(node, "job_posted_at_datetime_utc");
+        if (iso != null) {
+            try {
+                return Instant.parse(iso).toEpochMilli();
+            } catch (DateTimeParseException ignored) {
+                // Se sigue con el texto.
+            }
+        }
+        String ago = text(node, "job_posted_at");
+        if (ago != null) {
+            Matcher m = AGO.matcher(ago);
+            if (m.find()) {
+                long amount = Long.parseLong(m.group(1));
+                String unit = m.group(2).toLowerCase(Locale.ROOT);
+                long unitMillis = switch (unit.charAt(0)) {
+                    case 'm' -> unit.startsWith("mi") ? MINUTE : 30 * DAY;
+                    case 'h' -> HOUR;
+                    case 's' -> 7 * DAY;
+                    default -> DAY;
+                };
+                return now - amount * unitMillis;
+            }
+        }
+        return now;
+    }
+
+    /**
+     * Ubicación para mostrar.
+     *
+     * <p>Primero {@code job_location} sin el "a través de LinkedIn" del final, porque en la v5
+     * {@code job_city} a veces viene mal (un puesto en San José, Costa Rica, aparece con estado
+     * California). La ciudad se descarta si el país es otro. Si no hay nada: "Costa Rica", o
+     * "Todo el país" si es remota.
+     */
+    private static String location(JsonNode node) {
+        String raw = text(node, "job_location");
+        if (raw != null) {
+            String cleaned = EDGES.matcher(VIA.matcher(raw).replaceFirst("")).replaceAll("").trim();
+            if (!cleaned.isEmpty()) {
+                return cleaned;
+            }
+        }
+        String city = text(node, "job_city");
+        String country = text(node, "job_country");
+        if (city != null && (country == null || "CR".equalsIgnoreCase(country))) {
+            return city;
         }
         return node.path("job_is_remote").asBoolean(false) ? "Todo el país" : "Costa Rica";
     }
@@ -153,19 +218,27 @@ public class JSearchJobSource implements ExternalJobSource {
         return Modality.ON_SITE;
     }
 
+    /**
+     * Tipo de jornada. Se prefiere {@code job_employment_types}, que trae códigos en inglés
+     * ("FULLTIME"); {@code job_employment_type} viene en el idioma pedido ("Tiempo completo").
+     */
     private static JobType jobType(JsonNode node) {
-        String type = text(node, "job_employment_type");
+        JsonNode codes = node.path("job_employment_types");
+        String type = codes.isArray() && !codes.isEmpty() && codes.get(0).isString()
+                ? codes.get(0).asString()
+                : text(node, "job_employment_type");
         if (type == null) {
             return JobType.FULL_TIME;
         }
         String upper = type.toUpperCase(Locale.ROOT).replace(" ", "").replace("-", "");
-        if (upper.contains("INTERN")) {
+        if (upper.contains("INTERN") || upper.contains("PRÁCTICA") || upper.contains("PRACTICA")
+                || upper.contains("PASANT")) {
             return JobType.INTERNSHIP;
         }
-        if (upper.contains("PARTTIME")) {
+        if (upper.contains("PARTTIME") || upper.contains("MEDIOTIEMPO")) {
             return JobType.PART_TIME;
         }
-        if (upper.contains("CONTRACTOR") || upper.contains("FREELANCE")) {
+        if (upper.contains("CONTRACTOR") || upper.contains("FREELANCE") || upper.contains("CONTRATISTA")) {
             return JobType.FREELANCE;
         }
         return JobType.FULL_TIME;
