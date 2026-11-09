@@ -24,7 +24,7 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Importación de ofertas reales: arma el importador y lo corre todos los días (y una vez al
+ * Importación de ofertas reales: arma el importador y lo corre cada dos días (y una vez al
  * arrancar).
  *
  * <p>Si no hay clave de la API ({@code JSEARCH_API_KEY}), no se importa nada y el servicio sigue
@@ -48,7 +48,7 @@ public class JobImportConfig {
      * Sección {@code importer} de {@code application.yml}.
      *
      * @param queries búsquedas que se hacen en cada corrida. El plan gratis de JSearch da 200
-     *                consultas al mes: con 5 búsquedas al día son unas 150.
+     *                consultas al mes: con 6 búsquedas cada dos días son unas 90.
      */
     @ConfigurationProperties(prefix = "importer")
     public record ImporterProperties(boolean runOnStartup, JSearch jsearch, List<JobSearchQuery> queries) {
@@ -105,7 +105,7 @@ public class JobImportConfig {
         }
     }
 
-    /** Todos los días a la hora de {@code importer.cron} (hora de Costa Rica). */
+    /** A la hora de {@code importer.cron} (cada dos días, hora de Costa Rica). */
     @Scheduled(cron = "${importer.cron}", zone = "America/Costa_Rica")
     void dailyImport() {
         if (importer != null) {
