@@ -9,6 +9,10 @@ import com.cvexpert.ofertas.domain.model.Salary;
 import com.cvexpert.ofertas.domain.model.SkillExtractor;
 import com.cvexpert.ofertas.domain.port.out.ExternalJobSource;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -115,19 +119,19 @@ public class JSearchJobSource implements ExternalJobSource {
             } catch (RuntimeException e) {
                 // Una oferta que no cumple las reglas del dominio (por ejemplo, un salario con el
                 // mínimo mayor que el máximo) se salta; las demás se importan igual.
-                log.debug("Se descartó la oferta {} de JSearch: {}", text(node, "job_id"), e.getMessage());
+                log.debug("Se descartó la oferta \"{}\" de JSearch: {}", text(node, "job_title"), e.getMessage());
             }
         }
         return jobs;
     }
 
     private static ImportedJob toImportedJob(JsonNode node, JobSearchQuery query, long now) {
-        String id = text(node, "job_id");
         String title = text(node, "job_title");
         String company = text(node, "employer_name");
-        if (id == null || title == null || company == null) {
+        if (title == null || company == null) {
             return null;
         }
+        String id = stableId(title, company);
         String description = text(node, "job_description");
         if (description == null) {
             description = title;
@@ -314,6 +318,25 @@ public class JSearchJobSource implements ExternalJobSource {
     private static String applyUrl(JsonNode node) {
         String apply = text(node, "job_apply_link");
         return apply != null ? apply : text(node, "job_google_link");
+    }
+
+    /**
+     * Identificador de la oferta para no importarla dos veces: MD5 de "título|empresa" en
+     * minúscula.
+     *
+     * <p>No se usa {@code job_id} porque en la v5 de JSearch cambia en cada consulta para la misma
+     * oferta, y cada importación la volvía a crear. V4__ofertas_sin_duplicados.sql calcula lo mismo
+     * en SQL ({@code md5(lower(title) || '|' || lower(company))}) para las que ya estaban.
+     */
+    static String stableId(String title, String company) {
+        String key = title.toLowerCase(Locale.ROOT) + "|" + company.toLowerCase(Locale.ROOT);
+        try {
+            byte[] hash = MessageDigest.getInstance("MD5").digest(key.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            // Toda JVM trae MD5; si no, es un problema de la instalación, no de los datos.
+            throw new IllegalStateException(e);
+        }
     }
 
     /** Texto del campo, o {@code null} si falta, es null o está vacío. */

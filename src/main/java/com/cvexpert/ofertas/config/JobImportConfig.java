@@ -101,6 +101,7 @@ public class JobImportConfig {
             return;
         }
         if (properties.runOnStartup()) {
+            log.info("Importación inicial de ofertas programada en {} s", STARTUP_DELAY.toSeconds());
             scheduler.schedule(this::runImport, Instant.now().plus(STARTUP_DELAY));
         }
     }
