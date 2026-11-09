@@ -21,7 +21,7 @@ final class PersistenceMapper {
         Salary salary = e.salaryMin == null ? null : new Salary(e.salaryMin, e.salaryMax, e.salaryCurrency);
         JobOfferDetails details = new JobOfferDetails(e.title, e.company, e.companyLogoUrl, e.location,
                 modality(e.modality), jobType(e.jobType), e.sector, e.description, e.requirements, e.skills,
-                e.minExperienceYears, salary);
+                e.minExperienceYears, salary, e.applyUrl);
         return new JobOffer(e.id, details, e.postedAt);
     }
 
@@ -42,6 +42,7 @@ final class PersistenceMapper {
         e.salaryMin = s == null ? null : s.min();
         e.salaryMax = s == null ? null : s.max();
         e.salaryCurrency = s == null ? null : s.currency();
+        e.applyUrl = d.applyUrl();
     }
 
     static JobApplication toDomain(JobApplicationEntity e) {

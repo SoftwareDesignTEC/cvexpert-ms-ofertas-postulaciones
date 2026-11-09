@@ -57,6 +57,15 @@ class JobOfferEntity {
     /** Epoch milisegundos del borrado lógico; {@code null} si la oferta está vigente. */
     Long deletedAt;
 
+    /** De dónde vino: "jsearch", "demo" o {@code null} si la creó un administrador. */
+    String source;
+
+    /** Id de la oferta en su fuente; con {@code source} evita importarla dos veces. */
+    String externalId;
+
+    /** Página donde la persona se postula de verdad. */
+    String applyUrl;
+
     protected JobOfferEntity() {
         // Lo pide JPA.
     }

@@ -12,6 +12,8 @@ import java.util.List;
  * @param skills             habilidades que pide la oferta; se usan para la compatibilidad
  * @param minExperienceYears años de experiencia mínimos, o {@code null} si la oferta no pide
  * @param salary             {@code null} si la oferta no publica salario
+ * @param applyUrl           página donde la persona se postula de verdad (ofertas reales
+ *                           importadas); {@code null} si la oferta no tiene una
  */
 public record JobOfferDetails(
         String title,
@@ -25,7 +27,16 @@ public record JobOfferDetails(
         List<String> requirements,
         List<String> skills,
         Integer minExperienceYears,
-        Salary salary) {
+        Salary salary,
+        String applyUrl) {
+
+    /** Una oferta sin página externa de postulación, como las que crea un administrador. */
+    public JobOfferDetails(String title, String company, String companyLogoUrl, String location,
+            Modality modality, JobType type, String sector, String description, List<String> requirements,
+            List<String> skills, Integer minExperienceYears, Salary salary) {
+        this(title, company, companyLogoUrl, location, modality, type, sector, description, requirements,
+                skills, minExperienceYears, salary, null);
+    }
 
     public JobOfferDetails {
         requireText(title, "title");

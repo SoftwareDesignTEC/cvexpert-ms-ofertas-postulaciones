@@ -50,3 +50,32 @@ management:
     web:
       exposure:
         include: health
+
+# Importación de ofertas reales desde JSearch (ver JobImportConfig y JSearchJobSource). Sin
+# JSEARCH_API_KEY no se importa nada. La clave vive en el Key Vault (Ofertas--JSearchApiKey) y
+# llega al App Service como variable de entorno; nunca se escribe aquí.
+importer:
+  run-on-startup: ${JOBS_IMPORT_ON_STARTUP:true}
+  # Todos los días a las 6 a. m., hora de Costa Rica.
+  cron: ${JOBS_IMPORT_CRON:0 0 6 * * *}
+  jsearch:
+    api-key: ${JSEARCH_API_KEY:}
+    # Con RapidAPI. Para OpenWeb Ninja directo: base-url https://api.openwebninja.com/jsearch,
+    # key-header x-api-key y host-header vacío.
+    base-url: ${JSEARCH_BASE_URL:https://jsearch.p.rapidapi.com}
+    key-header: ${JSEARCH_KEY_HEADER:X-RapidAPI-Key}
+    host-header: ${JSEARCH_HOST_HEADER:jsearch.p.rapidapi.com}
+    country: cr
+    date-posted: month
+  # Cada búsqueda gasta una consulta por corrida. El sector se asigna aquí porque JSearch no lo trae.
+  queries:
+    - text: desarrollador junior en Costa Rica
+      sector: Tecnología
+    - text: soporte técnico en Costa Rica
+      sector: Tecnología
+    - text: servicio al cliente bilingüe en Costa Rica
+      sector: Servicio al cliente
+    - text: practicante en Costa Rica
+      sector: Prácticas profesionales
+    - text: asistente administrativo en Costa Rica
+      sector: Administración

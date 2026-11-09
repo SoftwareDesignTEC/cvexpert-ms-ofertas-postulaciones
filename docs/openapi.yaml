@@ -521,6 +521,13 @@ components:
           description: Experiencia mínima en años (nuevo en la Fase II, para la compatibilidad)
         salary:
           $ref: '#/components/schemas/Salary'
+        applyUrl:
+          type: string
+          format: uri
+          description: >-
+            Página donde la persona se postula de verdad (el sitio de la empresa o de la bolsa de
+            empleo). La traen las ofertas reales importadas de JSearch; falta en las que crea un
+            administrador sin enlace. Nuevo en la Fase II.
 
     JobOffer:
       allOf:
