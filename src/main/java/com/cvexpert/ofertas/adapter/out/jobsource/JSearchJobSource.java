@@ -49,6 +49,12 @@ public class JSearchJobSource implements ExternalJobSource {
     /** "San José · a través de LinkedIn": lo que va antes de "a través de" es la ubicación. */
     private static final Pattern VIA = Pattern.compile("(?i)\\s*(a trav[eé]s de|via)\\s.*$");
 
+    /** "(y 1 ubicación más)" o "(y 3 ubicaciones más)", con o sin el paréntesis de cierre. */
+    private static final Pattern MORE_PLACES = Pattern.compile("(?i)\\(\\s*y\\s+\\d+\\s+ubicaci\\S*\\s+m[aá]s\\s*\\)?");
+
+    /** "Provincia de Alajuela" → "Alajuela". */
+    private static final Pattern PROVINCE = Pattern.compile("(?i)provincia de\\s+");
+
     /** Lo que sobra al recortar: espacios, viñetas y separadores. */
     private static final Pattern EDGES = Pattern.compile("^[\\s\\p{Punct}·•]+|[\\s\\p{Punct}·•]+$");
 
@@ -193,7 +199,7 @@ public class JSearchJobSource implements ExternalJobSource {
     private static String location(JsonNode node) {
         String raw = text(node, "job_location");
         if (raw != null) {
-            String cleaned = EDGES.matcher(VIA.matcher(raw).replaceFirst("")).replaceAll("").trim();
+            String cleaned = cleanLocation(raw);
             if (!cleaned.isEmpty()) {
                 return cleaned;
             }
@@ -204,6 +210,24 @@ public class JSearchJobSource implements ExternalJobSource {
             return city;
         }
         return node.path("job_is_remote").asBoolean(false) ? "Todo el país" : "Costa Rica";
+    }
+
+    /**
+     * "Provincia de Alajuela, Alajuela  (y 1 ubicación más) · a través de LinkedIn" → "Alajuela".
+     * Quita la fuente, el "(y N ubicaciones más)", el "Provincia de" y las partes repetidas.
+     */
+    static String cleanLocation(String raw) {
+        String s = VIA.matcher(raw).replaceFirst("");
+        s = MORE_PLACES.matcher(s).replaceAll("");
+        s = PROVINCE.matcher(s).replaceAll("");
+        java.util.LinkedHashSet<String> parts = new java.util.LinkedHashSet<>();
+        for (String part : s.split(",")) {
+            String p = EDGES.matcher(part).replaceAll("").trim().replaceAll("\\s+", " ");
+            if (!p.isEmpty()) {
+                parts.add(p);
+            }
+        }
+        return String.join(", ", parts);
     }
 
     /** JSearch solo dice si es remota; "híbrido" se reconoce en la descripción. */

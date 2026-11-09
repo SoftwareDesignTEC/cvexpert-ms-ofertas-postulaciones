@@ -162,4 +162,14 @@ class JSearchJobSourceTest {
         assertThat(second.details().type()).isEqualTo(JobType.INTERNSHIP);
         assertThat(second.postedAt()).isEqualTo(java.time.Instant.parse("2026-11-01T12:00:00Z").toEpochMilli());
     }
+
+    @Test
+    void limpiaLaUbicacion() {
+        assertThat(JSearchJobSource.cleanLocation("Provincia de Alajuela, Alajuela  (y 1 ubicación más) · a través de LinkedIn"))
+                .isEqualTo("Alajuela");
+        assertThat(JSearchJobSource.cleanLocation("Provincia de Alajuela, Grecia  •  a través de Computrabajo"))
+                .isEqualTo("Alajuela, Grecia");
+        assertThat(JSearchJobSource.cleanLocation("Heredia (y 3 ubicaciones más)")).isEqualTo("Heredia");
+        assertThat(JSearchJobSource.cleanLocation("San José")).isEqualTo("San José");
+    }
 }
