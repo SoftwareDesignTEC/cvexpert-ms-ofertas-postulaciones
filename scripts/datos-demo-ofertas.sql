@@ -79,3 +79,38 @@ WHERE location = 'Remoto'
   AND modality = 'remote'
   AND company IN ('Taller Creativo Tico', 'Raíz Digital')
   AND deleted_at IS NULL;
+
+-- Logos de las empresas ficticias (los SVG están en scripts/logos/ de este repo).
+--
+-- Se sirven con jsDelivr, que entrega los archivos de un repo público de GitHub con el tipo
+-- correcto (image/svg+xml); raw.githubusercontent los manda como texto y la web no los muestra.
+-- La URL apunta a un commit fijo, no a main: así el logo no cambia aunque se edite el archivo.
+--
+-- También se actualizan las postulaciones, porque copian el logo de la oferta al crearse.
+-- Solo se llena donde no hay logo, para no pisar uno que se haya puesto a mano.
+WITH logos(company, slug) AS (VALUES
+    ('Nébula Software', 'nebula-software'),
+    ('Pixel Verde Studio', 'pixel-verde-studio'),
+    ('Conecta Servicios TI', 'conecta-servicios-ti'),
+    ('Datos Claros', 'datos-claros'),
+    ('Puente Global Contact', 'puente-global-contact'),
+    ('Taller Creativo Tico', 'taller-creativo-tico'),
+    ('Brote Marketing', 'brote-marketing'),
+    ('Cuentas Claras CR', 'cuentas-claras-cr'),
+    ('Raíz Digital', 'raiz-digital'),
+    ('Aprende Fácil', 'aprende-facil')
+), urls AS (
+    SELECT company,
+           'https://cdn.jsdelivr.net/gh/SoftwareDesignTEC/cvexpert-ms-ofertas-postulaciones@33750f5df48a55717e7d8ab008407ef6c0e3754a/scripts/logos/'
+               || slug || '.svg' AS url
+    FROM logos
+), offers AS (
+    UPDATE job_offers o
+    SET company_logo_url = u.url
+    FROM urls u
+    WHERE o.company = u.company AND o.company_logo_url IS NULL
+)
+UPDATE job_applications a
+SET company_logo_url = u.url
+FROM urls u
+WHERE a.company = u.company AND a.company_logo_url IS NULL;
