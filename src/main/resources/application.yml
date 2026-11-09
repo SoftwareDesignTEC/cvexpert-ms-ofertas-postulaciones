@@ -56,6 +56,8 @@ management:
 # llega al App Service como variable de entorno; nunca se escribe aquí.
 importer:
   run-on-startup: ${JOBS_IMPORT_ON_STARTUP:true}
+  # Avisos job.new por usuario y por corrida, de las ofertas nuevas más compatibles.
+  max-alerts-per-user: 3
   # Cada dos días a las 6 a. m., hora de Costa Rica. Las ofertas son del último mes, así que no
   # hace falta más seguido, y así 6 búsquedas gastan unas 90 consultas al mes de las 200 gratis.
   cron: ${JOBS_IMPORT_CRON:0 0 6 */2 * *}

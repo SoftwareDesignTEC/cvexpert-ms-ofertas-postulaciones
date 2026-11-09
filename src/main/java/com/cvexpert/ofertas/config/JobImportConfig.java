@@ -2,7 +2,10 @@ package com.cvexpert.ofertas.config;
 
 import com.cvexpert.ofertas.adapter.out.jobsource.JSearchJobSource;
 import com.cvexpert.ofertas.application.JobImportService;
+import com.cvexpert.ofertas.domain.model.CompatibilityCalculator;
 import com.cvexpert.ofertas.domain.model.JobSearchQuery;
+import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
+import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.ImportedJobRepository;
 import java.time.Clock;
 import java.time.Duration;
@@ -51,10 +54,13 @@ public class JobImportConfig {
      *                consultas al mes: con 6 búsquedas cada dos días son unas 90.
      */
     @ConfigurationProperties(prefix = "importer")
-    public record ImporterProperties(boolean runOnStartup, JSearch jsearch, List<JobSearchQuery> queries) {
+    public record ImporterProperties(boolean runOnStartup, JSearch jsearch, List<JobSearchQuery> queries,
+            Integer maxAlertsPerUser) {
 
         public ImporterProperties {
             queries = queries == null ? List.of() : List.copyOf(queries);
+            // Sin valor en la configuración: 3 avisos por usuario y por corrida.
+            maxAlertsPerUser = maxAlertsPerUser == null ? 3 : maxAlertsPerUser;
         }
 
         /** Conexión con JSearch. Ver JSearchJobSource para los encabezados. */
@@ -67,13 +73,14 @@ public class JobImportConfig {
         }
     }
 
-    JobImportConfig(ImporterProperties properties, ImportedJobRepository repository, JsonMapper json, Clock clock,
+    JobImportConfig(ImporterProperties properties, ImportedJobRepository repository, AlertSettingsRepository alerts,
+            CompatibilityCalculator compatibility, EventPublisher events, JsonMapper json, Clock clock,
             TaskScheduler scheduler) {
         this.properties = properties;
         this.scheduler = scheduler;
         this.importer = properties.configured()
                 ? new JobImportService(jsearch(properties.jsearch(), json, clock), repository, properties.queries(),
-                        clock)
+                        alerts, compatibility, events, properties.maxAlertsPerUser(), clock)
                 : null;
     }
 

@@ -17,7 +17,7 @@ class ImportedJobPersistenceAdapter implements ImportedJobRepository {
 
     @Override
     @Transactional
-    public boolean upsert(ImportedJob job) {
+    public Upsert upsert(ImportedJob job) {
         var existing = jpa.findBySourceAndExternalId(job.source(), job.externalId());
         JobOfferEntity entity = existing.orElseGet(() -> {
             JobOfferEntity created = new JobOfferEntity();
@@ -29,8 +29,8 @@ class ImportedJobPersistenceAdapter implements ImportedJobRepository {
         // Si ya estaba, se actualiza la descripción (la empresa pudo editar la oferta). Una oferta
         // que se había borrado se queda borrada: el importador no la revive.
         PersistenceMapper.copyDetails(job.details(), entity);
-        jpa.save(entity);
-        return existing.isEmpty();
+        JobOfferEntity saved = jpa.saveAndFlush(entity);
+        return new Upsert(PersistenceMapper.toDomain(saved), existing.isEmpty());
     }
 
     @Override

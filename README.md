@@ -165,17 +165,26 @@ Todo está en la suscripción Azure for Students de Andrés, en el grupo de recu
 - `SERVICEBUS_CONNECTION_STRING` es una referencia `@Microsoft.KeyVault(VaultName=kv-cvexpert;SecretName=ServiceBus--SendConnectionString)`: el valor no se copia, el App Service lo lee del Key Vault del grupo con su identidad administrada.
 - Para no gastar crédito al terminar el curso: borrar el grupo de recursos completo.
 
-### Ofertas de demostración
+### Ofertas reales (JSearch)
 
-[`scripts/datos-demo-ofertas.sql`](scripts/datos-demo-ofertas.sql) carga 10 ofertas de empresas ficticias pensadas para el público de la app: prácticas, medio tiempo y puestos junior, en varios sectores y provincias. Se insertan directo en la base porque crear ofertas por el API exige rol de admin en APIM; por eso no disparan `job.new`.
+Las ofertas que ve la app son reales. El servicio las importa de [JSearch](https://openwebninja.com/api/jsearch) (OpenWeb Ninja, por RapidAPI), una API que junta las ofertas publicadas en LinkedIn, Indeed, Computrabajo, buscojobs y otros sitios a través de Google for Jobs.
 
-Desde Cloud Shell, en la carpeta donde esté el archivo, conectado como `ofertas` (la contraseña es la de `DB_PASSWORD`):
+**Cómo funciona** (`config/JobImportConfig`, `application/JobImportService`, `adapter/out/jobsource/JSearchJobSource`):
 
-```bash
-psql "host=psql-ofertas-andres.postgres.database.azure.com port=5432 dbname=ofertas_postulaciones user=ofertas sslmode=require" -f datos-demo-ofertas.sql
-```
+1. Cada dos días a las 6 a. m. (hora de Costa Rica) y 20 s después de arrancar, el importador hace las 6 búsquedas de `importer.queries` en `application.yml` ("desarrollador junior en Costa Rica", "practicante en Costa Rica", "trabajo remoto desde Costa Rica"...). Cada una es un `GET /search-v2` con `country=cr`, `language=es`, `date_posted=month` y `num_pages=1` (hasta 10 ofertas).
+2. Cada resultado se convierte a nuestro modelo: título, empresa, logo, ubicación (de `job_location`, sin "a través de LinkedIn"), modalidad (de `job_is_remote` y del texto: "remoto", "teletrabajo", "híbrido"), jornada, salario si viene completo, requisitos, fecha y `applyUrl` (la página donde se postula de verdad). El sector sale de la búsqueda, porque JSearch no lo trae.
+3. Las habilidades no vienen en la API: `SkillExtractor` las busca en el título y la descripción contra un catálogo (Inglés, Excel, SQL, Java, Servicio al cliente...). Con eso funcionan la compatibilidad y los filtros.
+4. Se guarda con `source = 'jsearch'` y `external_id = md5(título|empresa)`. No se usa el `job_id` de JSearch porque cambia en cada consulta; así una oferta que vuelve a aparecer se **actualiza** en vez de duplicarse.
+5. A cada usuario con alertas activas se le avisa (`job.new`) de las ofertas **nuevas** de esa corrida que alcanzan su mínimo de compatibilidad: como mucho 3 por corrida (`importer.max-alerts-per-user`), las más compatibles.
+6. Si una búsqueda falla (red, límite de la API), se registra y se sigue con las demás. Las 10 ofertas inventadas de la Fase I (`source = 'demo'`) se retiraron con la primera importación que trajo ofertas reales.
 
-Debe responder `INSERT 0 10`. Correrlo otra vez no duplica nada (`INSERT 0 0`).
+El log de cada corrida dice cuántas ofertas entraron: `Importación de jsearch: N nuevas, M actualizadas, F búsquedas fallidas, D de demostración retiradas, A avisos job.new`.
+
+**Clave y cuota.** La clave está en el Key Vault (`Ofertas--JSearchApiKey` en `kv-cvexpert`) y el App Service la lee como referencia en `JSEARCH_API_KEY`. Sin clave, el importador no corre y el servicio sigue con las ofertas que tenga. El plan gratis da 200 consultas al mes: 6 búsquedas cada dos días son unas 90, y cada reinicio o despliegue gasta 6 más.
+
+**Migraciones.** `V3__ofertas_reales.sql` agrega `source`, `external_id` y `apply_url`; `V4__ofertas_sin_duplicados.sql` retiró los duplicados que se crearon antes de usar `md5(título|empresa)`.
+
+[`scripts/datos-demo-ofertas.sql`](scripts/datos-demo-ofertas.sql) con las 10 ofertas inventadas queda solo como referencia para correr el servicio en local sin clave de JSearch.
 
 ## Configuración
 
@@ -189,6 +198,8 @@ Ningún valor real está en el repositorio. Todo llega por variables de entorno:
 | `PORT` | Puerto HTTP (8080 si no se define) |
 | `APIM_CERT_THUMBPRINT` | Huella SHA-1 del certificado de cliente de APIM. Acepta varias separadas por coma, para cambiar de certificado sin cortar el servicio, y con o sin dos puntos. Si no está, no se valida el certificado (en local y en las pruebas) |
 | `SERVICEBUS_CONNECTION_STRING` | Cadena de solo envío a la cola `notificaciones-eventos` (`ServiceBus--SendConnectionString` en `kv-cvexpert`). Si no está, los eventos solo se escriben en el log, que es lo que pasa en local y en las pruebas |
+| `JSEARCH_API_KEY` | Clave de JSearch en RapidAPI (`Ofertas--JSearchApiKey` en `kv-cvexpert`, como referencia de Key Vault). Si no está, no se importan ofertas reales. `JSEARCH_BASE_URL`, `JSEARCH_KEY_HEADER` y `JSEARCH_HOST_HEADER` permiten usar OpenWeb Ninja directo en vez de RapidAPI |
+| `JOBS_IMPORT_CRON` | Cuándo se importa (por defecto cada dos días a las 6 a. m.). `JOBS_IMPORT_ON_STARTUP=false` apaga la importación al arrancar |
 
 ## Estado
 
