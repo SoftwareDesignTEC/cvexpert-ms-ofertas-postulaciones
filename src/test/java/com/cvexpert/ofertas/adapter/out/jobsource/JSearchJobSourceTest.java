@@ -70,7 +70,8 @@ class JSearchJobSourceTest {
         ImportedJob job = parse().get(0);
 
         assertThat(job.source()).isEqualTo("jsearch");
-        assertThat(job.externalId()).isEqualTo("abc123");
+        assertThat(job.externalId())
+                .isEqualTo(JSearchJobSource.stableId("Desarrollador Java Junior", "Empresa Real S.A."));
         assertThat(job.postedAt()).isEqualTo(1_799_900_000_000L);
         var d = job.details();
         assertThat(d.title()).isEqualTo("Desarrollador Java Junior");
@@ -103,7 +104,8 @@ class JSearchJobSourceTest {
 
     @Test
     void descartaLasIncompletasYLasQueNoCumplenLasReglas() {
-        assertThat(parse()).extracting(ImportedJob::externalId).containsExactly("abc123", "rem-1");
+        assertThat(parse()).extracting(j -> j.details().title())
+                .containsExactly("Desarrollador Java Junior", "Customer Support Agent");
     }
 
     /** Formato de la v5 ({@code /search-v2}): las ofertas vienen en data.jobs. Copia de una respuesta real. */
@@ -149,7 +151,7 @@ class JSearchJobSourceTest {
     void entiendeElFormatoDeLaVersion5() {
         var jobs = JSearchJobSource.toImportedJobs(JsonMapper.builder().build().readTree(RESPONSE_V5), QUERY, NOW);
 
-        assertThat(jobs).extracting(ImportedJob::externalId).containsExactly("v5-1", "v5-2");
+        assertThat(jobs).extracting(j -> j.details().company()).containsExactly("Centauro Solutions", "Empresa CR");
         var first = jobs.get(0);
         // job_city dice California: se usa job_location sin "a través de LinkedIn".
         assertThat(first.details().location()).isEqualTo("San José");
@@ -171,5 +173,14 @@ class JSearchJobSourceTest {
                 .isEqualTo("Alajuela, Grecia");
         assertThat(JSearchJobSource.cleanLocation("Heredia (y 3 ubicaciones más)")).isEqualTo("Heredia");
         assertThat(JSearchJobSource.cleanLocation("San José")).isEqualTo("San José");
+    }
+
+    @Test
+    void laMismaOfertaTieneSiempreElMismoId() {
+        // JSearch cambia job_id en cada consulta; el id propio no puede depender de él.
+        assertThat(JSearchJobSource.stableId("Cajero", "Pulpería La Esquina"))
+                .isEqualTo(JSearchJobSource.stableId("CAJERO", "pulpería la esquina"))
+                .isNotEqualTo(JSearchJobSource.stableId("Cajero", "Otra empresa"))
+                .hasSize(32);
     }
 }
