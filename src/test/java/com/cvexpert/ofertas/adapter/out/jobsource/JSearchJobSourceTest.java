@@ -183,4 +183,23 @@ class JSearchJobSourceTest {
                 .isNotEqualTo(JSearchJobSource.stableId("Cajero", "Otra empresa"))
                 .hasSize(32);
     }
+
+    @Test
+    void reconoceLaModalidadEnElTextoAunqueJobIsRemoteDigaFalse() {
+        String json = """
+                {"data": {"jobs": [
+                  {"job_title": "Desarrollador Python Junior - Trabajo Remoto", "employer_name": "A",
+                   "job_is_remote": false, "job_description": "Equipo distribuido."},
+                  {"job_title": "Analista", "employer_name": "B", "job_is_remote": false,
+                   "job_description": "Modalidad 100% teletrabajo."},
+                  {"job_title": "Soporte", "employer_name": "C", "job_is_remote": false,
+                   "job_description": "Esquema híbrido: 3 días en oficina, 2 remoto."},
+                  {"job_title": "Cajero", "employer_name": "D", "job_description": "En tienda."}
+                ]}}
+                """;
+        var jobs = JSearchJobSource.toImportedJobs(JsonMapper.builder().build().readTree(json), QUERY, NOW);
+
+        assertThat(jobs).extracting(j -> j.details().modality())
+                .containsExactly(Modality.REMOTE, Modality.REMOTE, Modality.HYBRID, Modality.ON_SITE);
+    }
 }

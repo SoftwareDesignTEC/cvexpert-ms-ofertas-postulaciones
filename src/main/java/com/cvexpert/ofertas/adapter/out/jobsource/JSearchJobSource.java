@@ -144,7 +144,7 @@ public class JSearchJobSource implements ExternalJobSource {
                 company,
                 text(node, "employer_logo"),
                 location(node),
-                modality(node, description),
+                modality(node, title, description),
                 jobType(node),
                 query.sector(),
                 description,
@@ -235,15 +235,34 @@ public class JSearchJobSource implements ExternalJobSource {
     }
 
     /** JSearch solo dice si es remota; "híbrido" se reconoce en la descripción. */
-    private static Modality modality(JsonNode node, String description) {
-        if (node.path("job_is_remote").asBoolean(false)) {
-            return Modality.REMOTE;
-        }
+    private static Modality modality(JsonNode node, String title, String description) {
+        String lowerTitle = title.toLowerCase(Locale.ROOT);
         String lower = description.toLowerCase(Locale.ROOT);
-        if (lower.contains("híbrid") || lower.contains("hibrid") || lower.contains("hybrid")) {
+        // Lo que dice el título manda: "Desarrollador Python - Trabajo Remoto".
+        if (mentionsHybrid(lowerTitle)) {
             return Modality.HYBRID;
         }
+        if (mentionsRemote(lowerTitle) || node.path("job_is_remote").asBoolean(false)) {
+            return Modality.REMOTE;
+        }
+        if (mentionsHybrid(lower)) {
+            return Modality.HYBRID;
+        }
+        // La v5 casi siempre manda job_is_remote en false, aunque la oferta sea remota: se busca
+        // en la descripción también.
+        if (mentionsRemote(lower)) {
+            return Modality.REMOTE;
+        }
         return Modality.ON_SITE;
+    }
+
+    private static boolean mentionsHybrid(String text) {
+        return text.contains("híbrid") || text.contains("hibrid") || text.contains("hybrid");
+    }
+
+    private static boolean mentionsRemote(String text) {
+        return text.contains("remoto") || text.contains("remota") || text.contains("remote")
+                || text.contains("teletrabajo") || text.contains("desde casa") || text.contains("work from home");
     }
 
     /**
