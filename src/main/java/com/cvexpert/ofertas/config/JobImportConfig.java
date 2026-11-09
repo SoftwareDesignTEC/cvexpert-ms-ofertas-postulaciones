@@ -82,7 +82,8 @@ public class JobImportConfig {
         // hasta la próxima corrida.
         var requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(10));
-        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+        // 60 s: la v5 a veces tarda más de 30 en responder una búsqueda.
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
         RestClient.Builder builder = RestClient.builder()
                 .baseUrl(config.baseUrl())
                 .requestFactory(requestFactory)
