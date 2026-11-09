@@ -14,6 +14,14 @@ interface JobOfferJpaRepository extends JpaRepository<JobOfferEntity, Long> {
 
     Optional<JobOfferEntity> findByIdAndDeletedAtIsNull(long id);
 
+    /** La oferta importada con ese id externo, borrada o no (para no volver a crearla). */
+    Optional<JobOfferEntity> findBySourceAndExternalId(String source, String externalId);
+
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update JobOfferEntity o set o.deletedAt = :deletedAt where o.source = :source and o.deletedAt is null")
+    int markSourceDeleted(@Param("source") String source, @Param("deletedAt") long deletedAt);
+
     Page<JobOfferEntity> findByDeletedAtIsNull(Pageable pageable);
 
     /** {@code pattern} ya viene en minúscula, con comodines y con {@code !} como escape. */

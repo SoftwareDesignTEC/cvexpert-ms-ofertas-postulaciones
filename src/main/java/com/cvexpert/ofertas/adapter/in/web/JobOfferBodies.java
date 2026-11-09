@@ -37,13 +37,14 @@ final class JobOfferBodies {
             List<String> requirements,
             List<String> skills,
             Integer minExperienceYears,
-            SalaryBody salary) {
+            SalaryBody salary,
+            String applyUrl) {
 
         JobOfferDetails toDetails() {
             return new JobOfferDetails(title, company, companyLogoUrl, location,
                     WireValues.modality(modality, "modality"), WireValues.jobType(type, "type"), sector,
                     description, requirements, skills, minExperienceYears,
-                    salary == null ? null : salary.toDomain());
+                    salary == null ? null : salary.toDomain(), applyUrl);
         }
     }
 
@@ -67,13 +68,15 @@ final class JobOfferBodies {
             Integer minExperienceYears,
             SalaryBody salary,
             Integer matchScore,
-            long postedAt) {
+            long postedAt,
+            String applyUrl) {
 
         static Output from(JobOffer offer, Integer matchScore) {
             JobOfferDetails d = offer.details();
             return new Output(String.valueOf(offer.id()), d.title(), d.company(), d.companyLogoUrl(), d.location(),
                     d.modality().wireValue(), d.type().wireValue(), d.sector(), d.description(), d.requirements(),
-                    d.skills(), d.minExperienceYears(), SalaryBody.from(d.salary()), matchScore, offer.postedAt());
+                    d.skills(), d.minExperienceYears(), SalaryBody.from(d.salary()), matchScore, offer.postedAt(),
+                    d.applyUrl());
         }
     }
 }
