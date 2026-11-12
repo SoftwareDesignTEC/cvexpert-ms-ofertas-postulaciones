@@ -56,9 +56,35 @@ paths:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
         - $ref: '#/components/parameters/Search'
+        - name: modality
+          in: query
+          description: Solo estas modalidades. Uno o varios, separados por coma (`remote,hybrid`) o repitiendo el parámetro.
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [remote, on-site, hybrid]
+          style: form
+          explode: false
+        - name: postedSinceDays
+          in: query
+          description: Solo las publicadas en los últimos N días (`7` = "Últimos 7 días").
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+        - name: minMatch
+          in: query
+          description: |
+            Compatibilidad mínima con el perfil de quien consulta. Si el usuario no guardó su
+            perfil, ninguna oferta la alcanza (salvo con 0). `totalRecords` cuenta solo las que pasan.
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
       responses:
         '200':
-          description: Página de ofertas. `matchScore` falta si el usuario no guardó su perfil de emparejamiento.
+          description: Página de ofertas, ya filtrada (`totalRecords` cuenta las filtradas). `matchScore` falta si el usuario no guardó su perfil de emparejamiento.
           content:
             application/json:
               schema:

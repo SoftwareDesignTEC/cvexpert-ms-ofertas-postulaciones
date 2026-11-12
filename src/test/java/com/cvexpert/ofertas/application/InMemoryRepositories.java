@@ -47,9 +47,23 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public PageResult<JobOffer> search(PageQuery query) {
-            List<JobOffer> active = rows.values().stream().filter(o -> !deleted.contains(o.id())).toList();
-            return new PageResult<>(active, query.page(), query.pageSize(), active.size());
+        public PageResult<JobOffer> search(PageQuery query, java.util.Set<com.cvexpert.ofertas.domain.model.Modality> modalities,
+                long postedAfter) {
+            List<JobOffer> active = findAll(query.search(), modalities, postedAfter);
+            int from = Math.min((query.page() - 1) * query.pageSize(), active.size());
+            int to = Math.min(from + query.pageSize(), active.size());
+            return new PageResult<>(active.subList(from, to), query.page(), query.pageSize(), active.size());
+        }
+
+        @Override
+        public List<JobOffer> findAll(String search, java.util.Set<com.cvexpert.ofertas.domain.model.Modality> modalities,
+                long postedAfter) {
+            return rows.values().stream()
+                    .filter(o -> !deleted.contains(o.id()))
+                    .filter(o -> modalities.isEmpty() || modalities.contains(o.details().modality()))
+                    .filter(o -> o.postedAt() >= postedAfter)
+                    .filter(o -> search == null || o.details().title().toLowerCase().contains(search.toLowerCase()))
+                    .toList();
         }
 
         @Override

@@ -25,6 +25,7 @@ import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
 import com.cvexpert.ofertas.domain.port.out.JobApplicationRepository;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -101,6 +102,22 @@ class PersistenceAdaptersTest {
         assertEquals("Desarrollador Web", page.items().get(0).details().title());
         assertEquals("Desarrollador Android",
                 offers.search(new PageQuery(2, 1, "desarrollador")).items().get(0).details().title());
+    }
+
+    @Test
+    void searchFiltersByModalityAndDate() {
+        publish("Desarrollador Android", NOW);
+        var d = Fixtures.details("Desarrollador remoto");
+        offers.save(JobOffer.publish(new JobOfferDetails(d.title(), d.company(), d.companyLogoUrl(), d.location(),
+                Modality.REMOTE, d.type(), d.sector(), d.description(), d.requirements(), d.skills(),
+                d.minExperienceYears(), d.salary()), NOW + 10));
+
+        assertEquals(1, offers.search(new PageQuery(1, 10, null), Set.of(Modality.REMOTE), 0L).total());
+        assertEquals(2, offers.search(new PageQuery(1, 10, "desarrollador"),
+                Set.of(Modality.REMOTE, Modality.HYBRID), 0L).total());
+        assertEquals(1, offers.search(new PageQuery(1, 10, null), Set.of(), NOW + 5).total());
+        assertEquals("Desarrollador remoto", offers.findAll(null, Set.of(), NOW + 5).get(0).details().title());
+        assertEquals(0, offers.findAll("android", Set.of(Modality.REMOTE), 0L).size());
     }
 
     @Test

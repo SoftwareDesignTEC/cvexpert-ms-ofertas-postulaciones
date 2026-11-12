@@ -75,6 +75,18 @@ Los pesos están en `application.yml` (`matching.weights`) y se pueden cambiar s
 
 Al crear una oferta se calcula la compatibilidad con cada usuario que tiene alertas activas, y se publica un `job.new` para cada uno cuyo puntaje es mayor o igual a su `minMatch`. Editar una oferta no vuelve a avisar.
 
+### Filtros de `GET /jobs`
+
+Además de `search`, el listado acepta tres filtros opcionales; `totalRecords` cuenta solo las ofertas que pasan:
+
+| Parámetro | Ejemplo | Qué hace |
+| --- | --- | --- |
+| `modality` | `remote,hybrid` | Solo esas modalidades (`remote`, `on-site`, `hybrid`) |
+| `postedSinceDays` | `7` | Solo las publicadas en los últimos N días (1 a 365) |
+| `minMatch` | `60` | Solo las que alcanzan esa compatibilidad (0 a 100). Sin perfil guardado no pasa ninguna |
+
+`modality` y `postedSinceDays` se filtran en la consulta SQL. `minMatch` no puede: la compatibilidad se calcula en Java para cada usuario, así que con ese filtro el servicio trae las ofertas que pasan los demás, las puntúa y pagina en memoria (son decenas). Un valor inválido responde 400.
+
 ## Eventos
 
 Publica en la cola `notificaciones-eventos` de Azure Service Bus, con el esquema que define Notificaciones:
