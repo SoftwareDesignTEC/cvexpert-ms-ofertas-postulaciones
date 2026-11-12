@@ -2,6 +2,7 @@ package com.cvexpert.ofertas.adapter.in.web;
 
 import com.cvexpert.ofertas.domain.exception.InvalidRequestException;
 import com.cvexpert.ofertas.domain.model.Caller;
+import com.cvexpert.ofertas.domain.model.JobFilter;
 import com.cvexpert.ofertas.domain.model.JobOfferDetails;
 import com.cvexpert.ofertas.domain.model.PageQuery;
 import com.cvexpert.ofertas.domain.model.ScoredJobOffer;
@@ -10,6 +11,8 @@ import com.cvexpert.ofertas.domain.port.in.DeleteJobUseCase;
 import com.cvexpert.ofertas.domain.port.in.GetJobUseCase;
 import com.cvexpert.ofertas.domain.port.in.ListJobsUseCase;
 import com.cvexpert.ofertas.domain.port.in.UpdateJobUseCase;
+import java.util.HashSet;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,8 +52,16 @@ public class JobController {
     public PageResponse<JobOfferBodies.Output> list(Caller caller,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(required = false) String search) {
-        return PageResponse.of(listJobs.listJobs(caller, new PageQuery(page, pageSize, search)), JobController::output);
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) List<String> modality,
+            @RequestParam(required = false) Integer postedSinceDays,
+            @RequestParam(required = false) Integer minMatch) {
+        // modality acepta "remote,hybrid" o el parámetro repetido; Spring separa las comas.
+        var modalities = modality == null ? null
+                : new HashSet<>(WireValues.modalities(modality.stream().filter(v -> !v.isBlank()).toList(), "modality"));
+        var filter = new JobFilter(modalities, postedSinceDays, minMatch);
+        return PageResponse.of(listJobs.listJobs(caller, new PageQuery(page, pageSize, search), filter),
+                JobController::output);
     }
 
     @GetMapping("/{id}")

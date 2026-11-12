@@ -175,6 +175,33 @@ class JobAndAlertControllerTest {
     }
 
     @Test
+    void listingFiltersByModalityDateAndMatch() throws Exception {
+        createOffer();
+
+        mvc.perform(as(get("/jobs").param("modality", "remote"), "ana-f"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRecords").value(0));
+        mvc.perform(as(get("/jobs").param("modality", "remote,hybrid").param("postedSinceDays", "7"), "ana-f"))
+                .andExpect(jsonPath("$.items[0].modality").value("hybrid"));
+        // Sin perfil guardado no hay compatibilidad, así que ninguna alcanza el mínimo.
+        mvc.perform(as(get("/jobs").param("minMatch", "50"), "ana-f"))
+                .andExpect(jsonPath("$.totalRecords").value(0));
+
+        mvc.perform(as(put("/alerts"), "ana-f").contentType(MediaType.APPLICATION_JSON).content(ALERTS))
+                .andExpect(status().isOk());
+        mvc.perform(as(get("/jobs").param("minMatch", "90").param("pageSize", "1"), "ana-f"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].matchScore").value(100));
+    }
+
+    @Test
+    void invalidFiltersAreBadRequests() throws Exception {
+        mvc.perform(as(get("/jobs").param("modality", "presencial"), "ana-f")).andExpect(status().isBadRequest());
+        mvc.perform(as(get("/jobs").param("postedSinceDays", "0"), "ana-f")).andExpect(status().isBadRequest());
+        mvc.perform(as(get("/jobs").param("minMatch", "101"), "ana-f")).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void creatingAnOfferPublishesJobNewForMatchingUsers() throws Exception {
         mvc.perform(as(put("/alerts"), "ana-n").contentType(MediaType.APPLICATION_JSON).content(ALERTS))
                 .andExpect(status().isOk());

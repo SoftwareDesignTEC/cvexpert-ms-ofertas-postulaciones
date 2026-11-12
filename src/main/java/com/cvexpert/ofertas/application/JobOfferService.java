@@ -4,6 +4,7 @@ import com.cvexpert.ofertas.domain.exception.NotFoundException;
 import com.cvexpert.ofertas.domain.model.AlertSettings;
 import com.cvexpert.ofertas.domain.model.Caller;
 import com.cvexpert.ofertas.domain.model.CompatibilityCalculator;
+import com.cvexpert.ofertas.domain.model.JobFilter;
 import com.cvexpert.ofertas.domain.model.JobOffer;
 import com.cvexpert.ofertas.domain.model.JobOfferDetails;
 import com.cvexpert.ofertas.domain.model.MatchingProfile;
@@ -20,6 +21,7 @@ import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
 import com.cvexpert.ofertas.domain.port.out.EventPublisher;
 import com.cvexpert.ofertas.domain.port.out.JobOfferRepository;
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -46,9 +48,21 @@ public class JobOfferService
     }
 
     @Override
-    public PageResult<ScoredJobOffer> listJobs(Caller caller, PageQuery query) {
+    public PageResult<ScoredJobOffer> listJobs(Caller caller, PageQuery query, JobFilter filter) {
         Optional<MatchingProfile> profile = profileOf(caller);
-        return offers.search(query).map(offer -> scored(offer, profile));
+        long postedAfter = filter.postedAfter(clock.millis());
+        if (!filter.hasMinMatch()) {
+            return offers.search(query, filter.modalities(), postedAfter).map(offer -> scored(offer, profile));
+        }
+        // La compatibilidad depende del perfil de cada usuario y se calcula acá, no en la base: se
+        // traen las que pasan los demás filtros (son decenas), se puntúan y se pagina en memoria.
+        List<ScoredJobOffer> matching = offers.findAll(query.search(), filter.modalities(), postedAfter).stream()
+                .map(offer -> scored(offer, profile))
+                .filter(scored -> filter.accepts(scored.matchScore()))
+                .toList();
+        int from = Math.min((query.page() - 1) * query.pageSize(), matching.size());
+        int to = Math.min(from + query.pageSize(), matching.size());
+        return new PageResult<>(matching.subList(from, to), query.page(), query.pageSize(), matching.size());
     }
 
     @Override

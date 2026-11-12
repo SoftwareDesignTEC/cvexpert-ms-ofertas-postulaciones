@@ -1,6 +1,7 @@
 package com.cvexpert.ofertas.domain.port.in;
 
 import com.cvexpert.ofertas.domain.model.Caller;
+import com.cvexpert.ofertas.domain.model.JobFilter;
 import com.cvexpert.ofertas.domain.model.PageQuery;
 import com.cvexpert.ofertas.domain.model.PageResult;
 import com.cvexpert.ofertas.domain.model.ScoredJobOffer;
@@ -11,5 +12,10 @@ import com.cvexpert.ofertas.domain.model.ScoredJobOffer;
  */
 public interface ListJobsUseCase {
 
-    PageResult<ScoredJobOffer> listJobs(Caller caller, PageQuery query);
+    default PageResult<ScoredJobOffer> listJobs(Caller caller, PageQuery query) {
+        return listJobs(caller, query, JobFilter.NONE);
+    }
+
+    /** Igual, pero solo las que pasan {@code filter}; {@code total} cuenta las filtradas. */
+    PageResult<ScoredJobOffer> listJobs(Caller caller, PageQuery query, JobFilter filter);
 }
