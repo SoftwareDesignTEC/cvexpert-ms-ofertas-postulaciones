@@ -100,6 +100,13 @@ class JobImportServiceTest {
         return new ImportedJob("jsearch", id, details, 1L);
     }
 
+    /** Un importador con una búsqueda que trae {@code count} ofertas (para JobRefreshServiceTest). */
+    JobImportService importerReturning(int count) {
+        setUp();
+        List<ImportedJob> jobs = java.util.stream.IntStream.range(0, count).mapToObj(i -> job("r" + i)).toList();
+        return service(Map.of(DEV.text(), jobs), List.of(DEV), 3);
+    }
+
     private static ImportedJob job(String id) {
         return job(id, "San José", List.of("Java"));
     }

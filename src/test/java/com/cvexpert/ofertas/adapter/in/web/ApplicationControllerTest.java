@@ -106,6 +106,17 @@ class ApplicationControllerTest {
     }
 
     @Test
+    void applyingCanStartInAnyColumn() throws Exception {
+        mvc.perform(as(post("/applications"), "ana-col").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jobOfferId\":\"" + offerId + "\",\"initialStatus\":\"interested\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("interested"));
+        mvc.perform(as(post("/applications"), "ana-col2").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"jobOfferId\":\"" + offerId + "\",\"initialStatus\":\"guardada\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void applyingTwiceIsAConflict() throws Exception {
         apply("ana-twice");
         mvc.perform(as(post("/applications"), "ana-twice").contentType(MediaType.APPLICATION_JSON)

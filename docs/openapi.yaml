@@ -122,6 +122,33 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /jobs/refresh:
+    post:
+      tags: [Ofertas]
+      summary: Buscar ofertas nuevas en JSearch ahora
+      description: |
+        Corre el importador en ese momento (las 6 búsquedas configuradas). Cualquier usuario
+        puede pedirlo; entre una corrida y otra hay que esperar 10 minutos para cuidar el plan
+        de la API (429). Si el importador está apagado (sin clave), 503.
+      operationId: refreshJobs
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/UserEmail'
+      responses:
+        '200':
+          description: Cuántas ofertas entraron.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: {type: integer}
+                  updated: {type: integer}
+                  failedQueries: {type: integer}
+        '429':
+          description: Se buscaron ofertas hace menos de 10 minutos (`REFRESH_TOO_SOON`).
+        '503':
+          description: El importador está apagado (`REFRESH_DISABLED`).
   /jobs/{id}:
     parameters:
       - $ref: '#/components/parameters/Id'
@@ -492,7 +519,7 @@ components:
     ApplicationStatus:
       type: string
       description: Columnas del Kanban, iguales a la Fase I
-      enum: [applied, in-progress, interview, rejected]
+      enum: [interested, applied, in-progress, interview, rejected]
     EpochMillis:
       type: integer
       format: int64
@@ -615,6 +642,12 @@ components:
           example: '123'
         notes:
           type: string
+        initialStatus:
+          description: |
+            Columna donde se guarda (opcional; sin valor, `applied`). El `status` que mandan los
+            clientes de la Fase I se sigue ignorando.
+          allOf:
+            - $ref: '#/components/schemas/ApplicationStatus'
       additionalProperties: true
 
     UpdateStatusRequest:

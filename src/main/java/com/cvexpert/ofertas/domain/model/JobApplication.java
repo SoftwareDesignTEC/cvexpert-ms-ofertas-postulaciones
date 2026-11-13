@@ -27,9 +27,15 @@ public record JobApplication(
 
     /** Una postulación nueva a {@code offer}. Nace en {@link ApplicationStatus#APPLIED}. */
     public static JobApplication apply(String userId, JobOffer offer, String notes, long now) {
+        return apply(userId, offer, notes, ApplicationStatus.APPLIED, now);
+    }
+
+    /** Postulación nueva guardada directo en la columna {@code status}. */
+    public static JobApplication apply(String userId, JobOffer offer, String notes, ApplicationStatus status,
+            long now) {
         JobOfferDetails d = offer.details();
         return new JobApplication(null, userId, offer.id(), d.title(), d.company(), d.companyLogoUrl(),
-                d.location(), d.modality(), ApplicationStatus.APPLIED, now, now, notes);
+                d.location(), d.modality(), status, now, now, notes);
     }
 
     public boolean belongsTo(String otherUserId) {

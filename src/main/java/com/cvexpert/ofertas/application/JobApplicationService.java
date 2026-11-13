@@ -54,12 +54,12 @@ public class JobApplicationService implements ListApplicationsUseCase, GetApplic
     }
 
     @Override
-    public JobApplication apply(Caller caller, long jobOfferId, String notes) {
+    public JobApplication apply(Caller caller, long jobOfferId, String notes, ApplicationStatus status) {
         JobOffer offer = offers.findById(jobOfferId).orElseThrow(() -> NotFoundException.jobOffer(jobOfferId));
         if (applications.existsByUserAndJobOffer(caller.userId(), jobOfferId)) {
             throw new AlreadyAppliedException();
         }
-        return applications.save(JobApplication.apply(caller.userId(), offer, notes, clock.millis()));
+        return applications.save(JobApplication.apply(caller.userId(), offer, notes, status, clock.millis()));
     }
 
     @Override

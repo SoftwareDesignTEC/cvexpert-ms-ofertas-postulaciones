@@ -1,6 +1,6 @@
 # CVExpert: Ofertas y Postulaciones
 
-Microservicio de CVExpert que maneja las ofertas de trabajo, la compatibilidad de cada oferta con el perfil de la persona, las alertas de ofertas nuevas y las postulaciones con su tablero Kanban (Aplicado, En proceso, Entrevista, Rechazado).
+Microservicio de CVExpert que maneja las ofertas de trabajo, la compatibilidad de cada oferta con el perfil de la persona, las alertas de ofertas nuevas y las postulaciones con su tablero Kanban (Me interesa, Aplicado, En proceso, Entrevista, Rechazado). "Me interesa" (`interested`) se agregó en la Fase II: `POST /applications` acepta `initialStatus` para guardar la oferta directo en cualquier columna (sin él, nace en `applied`).
 
 Es uno de los cinco microservicios de la Fase II. Solo lo llama Azure API Management (APIM): ningún otro servicio ni cliente le habla directo.
 
@@ -189,6 +189,8 @@ Las ofertas que ve la app son reales. El servicio las importa de [JSearch](https
 4. Se guarda con `source = 'jsearch'` y `external_id = md5(título|empresa)`. No se usa el `job_id` de JSearch porque cambia en cada consulta; así una oferta que vuelve a aparecer se **actualiza** en vez de duplicarse.
 5. A cada usuario con alertas activas se le avisa (`job.new`) de las ofertas **nuevas** de esa corrida que alcanzan su mínimo de compatibilidad: como mucho 3 por corrida (`importer.max-alerts-per-user`), las más compatibles.
 6. Si una búsqueda falla (red, límite de la API), se registra y se sigue con las demás. Las 10 ofertas inventadas de la Fase I (`source = 'demo'`) se retiraron con la primera importación que trajo ofertas reales.
+
+Además, `POST /jobs/refresh` corre el importador en ese momento (el botón "Buscar ofertas nuevas" de la app). Cualquier usuario puede pedirlo, pero entre una corrida y otra hay que esperar 10 minutos (429 `REFRESH_TOO_SOON`): cada corrida gasta 6 consultas del plan.
 
 El log de cada corrida dice cuántas ofertas entraron: `Importación de jsearch: N nuevas, M actualizadas, F búsquedas fallidas, D de demostración retiradas, A avisos job.new`.
 
