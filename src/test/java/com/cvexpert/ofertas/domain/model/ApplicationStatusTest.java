@@ -11,9 +11,10 @@ import org.junit.jupiter.api.Test;
 class ApplicationStatusTest {
 
     @Test
-    void usesTheSameValuesAsPhaseOne() {
+    void keepsThePhaseOneValuesAndAddsInterested() {
+        // Los cuatro de la Fase I siguen iguales; "interested" (Me interesa) es de la Fase II.
         List<String> wire = Arrays.stream(ApplicationStatus.values()).map(ApplicationStatus::wireValue).toList();
-        assertEquals(List.of("applied", "in-progress", "interview", "rejected"), wire);
+        assertEquals(List.of("interested", "applied", "in-progress", "interview", "rejected"), wire);
     }
 
     @Test

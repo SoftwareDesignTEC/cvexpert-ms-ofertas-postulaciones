@@ -53,6 +53,11 @@ class JobAndAlertControllerTest {
         }
 
         @Bean
+        com.cvexpert.ofertas.domain.port.in.RefreshJobsUseCase refreshJobs() {
+            return () -> new com.cvexpert.ofertas.domain.port.in.RefreshJobsUseCase.Result(3, 5, 0);
+        }
+
+        @Bean
         AlertService alertService(InMemoryRepositories.Alerts alerts) {
             return new AlertService(alerts, Fixtures.clockAt(NOW));
         }
@@ -192,6 +197,14 @@ class JobAndAlertControllerTest {
         mvc.perform(as(get("/jobs").param("minMatch", "90").param("pageSize", "1"), "ana-f"))
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].matchScore").value(100));
+    }
+
+    @Test
+    void refreshReturnsWhatWasImported() throws Exception {
+        mvc.perform(as(post("/jobs/refresh"), "ana-r"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.created").value(3))
+                .andExpect(jsonPath("$.updated").value(5));
     }
 
     @Test

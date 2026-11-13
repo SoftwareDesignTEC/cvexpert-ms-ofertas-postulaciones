@@ -5,6 +5,7 @@ import com.cvexpert.ofertas.domain.exception.DomainException;
 import com.cvexpert.ofertas.domain.exception.ForbiddenException;
 import com.cvexpert.ofertas.domain.exception.InvalidRequestException;
 import com.cvexpert.ofertas.domain.exception.NotFoundException;
+import com.cvexpert.ofertas.domain.exception.RefreshNotAvailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -68,6 +69,9 @@ public class ApiExceptionHandler {
         }
         if (e instanceof AlreadyAppliedException) {
             return HttpStatus.CONFLICT;
+        }
+        if (e instanceof RefreshNotAvailableException refresh) {
+            return refresh.tooSoon() ? HttpStatus.TOO_MANY_REQUESTS : HttpStatus.SERVICE_UNAVAILABLE;
         }
         return HttpStatus.INTERNAL_SERVER_ERROR;
     }

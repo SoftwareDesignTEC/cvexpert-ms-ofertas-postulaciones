@@ -10,6 +10,7 @@ import com.cvexpert.ofertas.domain.port.in.CreateJobUseCase;
 import com.cvexpert.ofertas.domain.port.in.DeleteJobUseCase;
 import com.cvexpert.ofertas.domain.port.in.GetJobUseCase;
 import com.cvexpert.ofertas.domain.port.in.ListJobsUseCase;
+import com.cvexpert.ofertas.domain.port.in.RefreshJobsUseCase;
 import com.cvexpert.ofertas.domain.port.in.UpdateJobUseCase;
 import java.util.HashSet;
 import java.util.List;
@@ -38,9 +39,11 @@ public class JobController {
     private final CreateJobUseCase createJob;
     private final UpdateJobUseCase updateJob;
     private final DeleteJobUseCase deleteJob;
+    private final RefreshJobsUseCase refreshJobs;
 
     public JobController(ListJobsUseCase listJobs, GetJobUseCase getJob, CreateJobUseCase createJob,
-            UpdateJobUseCase updateJob, DeleteJobUseCase deleteJob) {
+            UpdateJobUseCase updateJob, DeleteJobUseCase deleteJob, RefreshJobsUseCase refreshJobs) {
+        this.refreshJobs = refreshJobs;
         this.listJobs = listJobs;
         this.getJob = getJob;
         this.createJob = createJob;
@@ -62,6 +65,16 @@ public class JobController {
         var filter = new JobFilter(modalities, postedSinceDays, minMatch);
         return PageResponse.of(listJobs.listJobs(caller, new PageQuery(page, pageSize, search), filter),
                 JobController::output);
+    }
+
+    /**
+     * Busca ofertas nuevas en JSearch en este momento. Cualquier usuario puede pedirlo (es el
+     * botón "Buscar ofertas nuevas" de la app); la espera mínima entre corridas cuida el plan
+     * de la API: si fue hace poco responde 429.
+     */
+    @PostMapping("/refresh")
+    public RefreshJobsUseCase.Result refresh(Caller caller) {
+        return refreshJobs.refreshJobs();
     }
 
     @GetMapping("/{id}")

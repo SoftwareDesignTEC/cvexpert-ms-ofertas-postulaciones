@@ -63,9 +63,14 @@ final class WireValues {
 
     /** El estado del cuerpo de un cambio de estado. Un cuerpo vacío es un 400. */
     static ApplicationStatus status(ApplicationRequests.UpdateStatus body) {
-        return ApplicationStatus.fromWireValue(body == null ? null : body.status())
+        return status(body == null ? null : body.status());
+    }
+
+    /** Un estado de la API; cualquier otro texto es un 400. */
+    static ApplicationStatus status(String value) {
+        return ApplicationStatus.fromWireValue(value)
                 .orElseThrow(() -> new InvalidRequestException(
-                        "status tiene que ser applied, in-progress, interview o rejected"));
+                        "status tiene que ser interested, applied, in-progress, interview o rejected"));
     }
 
     private static Optional<Long> parseId(String id) {

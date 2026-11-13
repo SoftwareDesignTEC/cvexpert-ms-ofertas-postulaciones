@@ -1,6 +1,7 @@
 package com.cvexpert.ofertas.adapter.in.web;
 
 import com.cvexpert.ofertas.domain.exception.InvalidRequestException;
+import com.cvexpert.ofertas.domain.model.ApplicationStatus;
 import com.cvexpert.ofertas.domain.model.Caller;
 import com.cvexpert.ofertas.domain.model.PageQuery;
 import com.cvexpert.ofertas.domain.port.in.ApplyToJobUseCase;
@@ -60,7 +61,10 @@ public class ApplicationController {
             throw new InvalidRequestException("Falta el cuerpo de la solicitud");
         }
         long jobOfferId = WireValues.idFromBody(body.jobOfferId(), "jobOfferId");
-        return JobApplicationResponse.from(applyToJob.apply(caller, jobOfferId, body.notes()));
+        var status = body.initialStatus() == null || body.initialStatus().isBlank()
+                ? ApplicationStatus.APPLIED
+                : WireValues.status(body.initialStatus());
+        return JobApplicationResponse.from(applyToJob.apply(caller, jobOfferId, body.notes(), status));
     }
 
     @GetMapping("/{id}")

@@ -2,6 +2,8 @@ package com.cvexpert.ofertas.config;
 
 import com.cvexpert.ofertas.adapter.out.jobsource.JSearchJobSource;
 import com.cvexpert.ofertas.application.JobImportService;
+import com.cvexpert.ofertas.application.JobRefreshService;
+import com.cvexpert.ofertas.domain.port.in.RefreshJobsUseCase;
 import com.cvexpert.ofertas.domain.model.CompatibilityCalculator;
 import com.cvexpert.ofertas.domain.model.JobSearchQuery;
 import com.cvexpert.ofertas.domain.port.out.AlertSettingsRepository;
@@ -46,6 +48,10 @@ public class JobImportConfig {
     private final ImporterProperties properties;
     private final JobImportService importer;
     private final TaskScheduler scheduler;
+    private final Clock clock;
+
+    /** Espera mínima entre dos "Buscar ofertas nuevas": cada corrida gasta 6 consultas de JSearch. */
+    private static final Duration REFRESH_COOLDOWN = Duration.ofMinutes(10);
 
     /**
      * Sección {@code importer} de {@code application.yml}.
@@ -78,6 +84,7 @@ public class JobImportConfig {
             TaskScheduler scheduler) {
         this.properties = properties;
         this.scheduler = scheduler;
+        this.clock = clock;
         this.importer = properties.configured()
                 ? new JobImportService(jsearch(properties.jsearch(), json, clock), repository, properties.queries(),
                         alerts, compatibility, events, properties.maxAlertsPerUser(), clock)
@@ -99,6 +106,12 @@ public class JobImportConfig {
             builder.defaultHeader("X-RapidAPI-Host", config.hostHeader());
         }
         return new JSearchJobSource(builder.build(), json, config.country(), config.datePosted(), clock);
+    }
+
+    /** Lo que usa {@code POST /jobs/refresh}. Si el importador está apagado, responde 503. */
+    @Bean
+    RefreshJobsUseCase refreshJobs() {
+        return new JobRefreshService(importer, clock, REFRESH_COOLDOWN);
     }
 
     /** Una vez al arrancar, un rato después, para que haya ofertas reales apenas se despliega. */

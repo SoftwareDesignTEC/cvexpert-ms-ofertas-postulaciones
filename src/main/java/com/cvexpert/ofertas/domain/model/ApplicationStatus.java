@@ -4,12 +4,14 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * Estado de una postulación: las cuatro columnas del tablero Kanban.
+ * Estado de una postulación: las columnas del tablero Kanban. {@code interested} ("Me interesa")
+ * se agregó en la Fase II para guardar una oferta antes de postularse.
  *
  * <p>El valor que viaja en la API y en los eventos ({@link #wireValue()}) es el mismo de la
  * Fase I ({@code docs/contract/models.ts} de los clientes), así la web y la app no cambian.
  */
 public enum ApplicationStatus {
+    INTERESTED("interested"),
     APPLIED("applied"),
     IN_PROGRESS("in-progress"),
     INTERVIEW("interview"),
@@ -27,7 +29,7 @@ public enum ApplicationStatus {
     }
 
     /**
-     * El estado que corresponde a un texto de la API, o vacío si no es ninguno de los cuatro.
+     * El estado que corresponde a un texto de la API, o vacío si no es ninguno.
      *
      * <p>Solo acepta los valores canónicos. Los mocks de la Fase I mandaban también
      * {@code in_progress}; el servicio real no los acepta, para que el contrato tenga una sola
